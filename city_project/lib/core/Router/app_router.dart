@@ -1,3 +1,6 @@
+import 'package:city_project/Features/Home/view/home_view.dart';
+import 'package:city_project/Features/Login/view/login_view.dart';
+import 'package:city_project/Features/Login/view/register_view.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'app_router_constants.dart';
@@ -10,9 +13,12 @@ class AppRouter {
       GoRoute(
         name: AppRouterConstants.loginRouteName,
         path: '/login',
-        builder: (context, state) => const Scaffold(
-          body: Center(child: Text("GİRİŞ SAYFASI (LoginView)")),
-        ),
+        builder: (context, state) => const LoginView(),
+      ),
+      GoRoute(
+        name: AppRouterConstants.registerRouteName,
+        path: '/register',
+        builder: (context, state) => const RegisterView(),
       ),
 
       // --- 2. NAVBAR İLE GÖRÜNECEK SAYFALAR (Ana Yapı) ---
@@ -25,9 +31,18 @@ class AppRouter {
               currentIndex: navigationShell.currentIndex,
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Ev'),
-                BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Analiz'),
-                BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Mesajlar'),
-                BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.analytics),
+                  label: 'İlçeler',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.message),
+                  label: 'Mesajlar',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person),
+                  label: 'Profil',
+                ),
               ],
               onTap: (index) => navigationShell.goBranch(index),
             ),
@@ -39,8 +54,8 @@ class AppRouter {
             routes: [
               GoRoute(
                 name: AppRouterConstants.homeRouteName,
-                path: '/',
-                builder: (context, state) => const Center(child: Text("ANA SAYFA")),
+                path: '/home',
+                builder: (context, state) => const HomeView(),
               ),
             ],
           ),
@@ -50,7 +65,8 @@ class AppRouter {
               GoRoute(
                 name: AppRouterConstants.analysisRouteName,
                 path: '/analysis',
-                builder: (context, state) => const Center(child: Text("ANALİZ SAYFASI")),
+                builder: (context, state) =>
+                    const Center(child: Text("ANALİZ SAYFASI")),
               ),
             ],
           ),
@@ -60,7 +76,8 @@ class AppRouter {
               GoRoute(
                 name: AppRouterConstants.messagesRouteName,
                 path: '/messages',
-                builder: (context, state) => const Center(child: Text("MESAJLAR SAYFASI")),
+                builder: (context, state) =>
+                    const Center(child: Text("MESAJLAR SAYFASI")),
               ),
             ],
           ),
@@ -70,7 +87,8 @@ class AppRouter {
               GoRoute(
                 name: AppRouterConstants.profileRouteName,
                 path: '/profile',
-                builder: (context, state) => const Center(child: Text("PROFİL SAYFASI")),
+                builder: (context, state) =>
+                    const Center(child: Text("PROFİL SAYFASI")),
               ),
             ],
           ),

@@ -1,5 +1,6 @@
 class AppRouterConstants {
   static const String loginRouteName = 'login';
+  static const String registerRouteName = 'register';
   static const String homeRouteName = 'home';
   static const String analysisRouteName = 'analysis';
   static const String messagesRouteName = 'messages';
