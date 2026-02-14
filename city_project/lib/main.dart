@@ -1,3 +1,5 @@
+import 'package:city_project/Features/Home/viewmodel/home_viewmodel.dart';
+import 'package:city_project/Features/Profile/viewmodel/profile_view_model.dart';
 import 'package:city_project/core/Theme/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -33,6 +35,10 @@ void main() async {
 
         // Login ViewModel - locator üzerinden çağırıyoruz
         ChangeNotifierProvider(create: (_) => locator<LoginViewModel>()),
+
+        ChangeNotifierProvider(create: (_) => locator<HomeViewModel>()),
+
+        ChangeNotifierProvider(create: (_) => ProfileViewModel()),
       ],
       child: const MyApp(),
     ),
