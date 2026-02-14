@@ -1,5 +1,5 @@
+import 'package:city_project/Features/Login/model/user_model.dart';
 import 'package:flutter/material.dart';
-import '../../Login/model/user_model.dart';
 
 class ProfileHeader extends StatelessWidget {
   final UserModel user;

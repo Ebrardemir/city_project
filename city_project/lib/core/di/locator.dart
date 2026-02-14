@@ -8,8 +8,7 @@ import 'package:city_project/core/services/auth_service.dart';
 import 'package:city_project/core/network/auth_interceptor.dart';
 import 'package:city_project/core/network/logging_interceptor.dart';
 
-// Login Özelliği
-import 'package:city_project/Features/Login/service/login_service.dart';
+
 // HOME FEATURE
 import 'package:city_project/core/services/location_service.dart';
 import 'package:city_project/Features/Home/service/report_service.dart';
@@ -55,10 +54,6 @@ void setupLocator() {
 
     return dio;
   });
-
-  // 3. ÖZELLİK SERVİSLERİ (Features)
-  // LoginService: Dio bağımlılığını otomatik olarak locator'dan alır
-  locator.registerLazySingleton(() => LoginService(locator<Dio>()));
 
   // 4. VIEWMODEL'LER
   // registerFactory: Her sayfa açıldığında ViewModel'in yeni bir kopyasını oluşturur
