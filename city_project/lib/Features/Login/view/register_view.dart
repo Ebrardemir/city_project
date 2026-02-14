@@ -1,0 +1,228 @@
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import '../widgets/auth_text_field.dart';
+
+class RegisterView extends StatefulWidget {
+  const RegisterView({super.key});
+
+  @override
+  State<RegisterView> createState() => _RegisterViewState();
+}
+
+class _RegisterViewState extends State<RegisterView> {
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  String? selectedCity;
+  bool isLoading = false;
+
+  final List<String> cities = [
+    "İstanbul",
+    "Ankara",
+    "İzmir",
+    "Bursa",
+    "Antalya",
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      body: Stack(
+        children: [
+          // 🔵 Gradient Background (Login ile aynı tasarım dili)
+          Container(
+            height: size.height,
+            width: size.width,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFF1565C0),
+                  Color(0xFF42A5F5),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  const SizedBox(height: 40),
+
+                  // 🏙️ Header
+                  const Icon(
+                    Icons.person_add_alt_1_rounded,
+                    size: 70,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Yeni Hesap Oluştur",
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "CityPulse topluluğuna katılın",
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  // 🧊 Glass Form Card
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.92),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 25,
+                              offset: const Offset(0, 15),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            // 👤 Ad Soyad
+                            AuthTextField(
+                              controller: nameController,
+                              label: "Ad Soyad",
+                              icon: Icons.person_outline,
+                              hint: "Adınız ve soyadınız",
+                            ),
+                            const SizedBox(height: 18),
+
+                            // 📧 Email
+                            AuthTextField(
+                              controller: emailController,
+                              label: "E-posta",
+                              icon: Icons.email_outlined,
+                              hint: "email@belediye.bel.tr",
+                            ),
+                            const SizedBox(height: 18),
+
+                            // 🔒 Şifre
+                            AuthTextField(
+                              controller: passwordController,
+                              label: "Şifre",
+                              icon: Icons.lock_outline,
+                              hint: "Güçlü bir şifre giriniz",
+                              isPassword: true,
+                            ),
+                            const SizedBox(height: 18),
+
+                            // 🗺️ Şehir Dropdown (Modern Stil)
+                            DropdownButtonFormField<String>(
+                              value: selectedCity,
+                              decoration: InputDecoration(
+                                labelText: "Yaşadığınız Şehir",
+                                prefixIcon: const Icon(Icons.map_outlined),
+                                filled: true,
+                                fillColor: Colors.grey.shade100,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                  horizontal: 16,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF1565C0),
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              items: cities.map((city) {
+                                return DropdownMenuItem(
+                                  value: city,
+                                  child: Text(city),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedCity = value;
+                                });
+                              },
+                            ),
+
+                            const SizedBox(height: 30),
+
+                            // 🚀 Premium Register Button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  elevation: 6,
+                                  backgroundColor: const Color(0xFF1565C0),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                ),
+                                onPressed: isLoading
+                                    ? null
+                                    : () async {
+                                        setState(() => isLoading = true);
+
+                                        // TODO: Register Logic
+                                        await Future.delayed(
+                                          const Duration(seconds: 2),
+                                        );
+
+                                        setState(() => isLoading = false);
+                                      },
+                                child: isLoading
+                                    ? const CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      )
+                                    : const Text(
+                                        "Kayıt Ol",
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

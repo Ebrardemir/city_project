@@ -3,7 +3,6 @@ import 'package:city_project/Features/Login/model/login_response_model.dart';
 import 'package:city_project/Features/Login/model/user_model.dart'; // Eklendi
 import 'package:city_project/core/Network/network_exceptions.dart';
 import 'package:dio/dio.dart';
-import '../../../core/Network/api_endpoints.dart';
 import '../../../core/logger/logger.dart';
 
 class LoginService {
@@ -36,7 +35,6 @@ class LoginService {
           id: 1,
           fullName: "Test Kullanıcı",
           email: requestModel.email, // Girdiğin email ile eşleşsin
-          passwordHash: "********",
           role: "Citizen",
           score: 100,
           cityId: 34,

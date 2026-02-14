@@ -12,7 +12,6 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       id: reader.read() as int,
       fullName: reader.read() as String,
       email: reader.read() as String,
-      passwordHash: reader.read() as String,
       role: reader.read() as String,
       score: reader.read() as int,
       cityId: reader.read() as int,
@@ -26,7 +25,6 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       ..write(obj.id)
       ..write(obj.fullName)
       ..write(obj.email)
-      ..write(obj.passwordHash)
       ..write(obj.role)
       ..write(obj.score)
       ..write(obj.cityId);
