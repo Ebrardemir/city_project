@@ -2,14 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import '../service/login_service.dart';
-import '../../../core/services/auth_service.dart';
 
 class LoginViewModel extends ChangeNotifier {
-  final LoginService _loginService;
-  final AuthService _authService;
-
-  LoginViewModel(this._loginService, this._authService);
+  LoginViewModel();
 
   // Controller'lar veriyi arayüzden çekmek için kullanılır
   final TextEditingController emailController = TextEditingController();
