@@ -3,6 +3,7 @@ import 'package:city_project/Features/Home/widgets/location_confirm_sheet.dart';
 import 'package:city_project/Features/Home/widgets/map_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
@@ -11,7 +12,6 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-
   @override
   void initState() {
     super.initState();
@@ -35,7 +35,8 @@ class _HomeViewState extends State<HomeView> {
               alignment: Alignment.bottomCenter,
               child: LocationConfirmSheet(
                 city: vm.city,
-                district: vm.district, onResult: (bool result) {
+                district: vm.district,
+                onResult: (bool result) {
                   if (!result) {
                     // Manuel şehir/ilçe seç ekranına git
                   }

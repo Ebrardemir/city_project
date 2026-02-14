@@ -1,5 +1,5 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';  
-import 'package:hive_flutter/hive_flutter.dart';  
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:city_project/Features/Login/model/user_model.dart'; // Yolunu kontrol et
 import 'package:city_project/core/Storage/hive_manager.dart'; // Yolunu kontrol et
 import '../logger/logger.dart'; // Kendi logger yapına göre güncelle
@@ -32,9 +32,9 @@ class AuthService {
 
   /// Başarılı giriş sonrası tüm verileri kaydeder
   Future<void> saveLogin({
-    required UserModel user, 
-    required String accessToken, 
-    required String refreshToken
+    required UserModel user,
+    required String accessToken,
+    required String refreshToken,
   }) async {
     await _ensureInit();
     final box = Hive.box(HiveBoxes.auth);
@@ -57,12 +57,17 @@ class AuthService {
     try {
       final user = box.get(HiveKeys.user);
       if (user is UserModel) {
-        log.d('[AuthService] Kullanıcı getirildi: ${user.fullName} (Puan: ${user.score})');
+        log.d(
+          '[AuthService] Kullanıcı getirildi: ${user.fullName} (Puan: ${user.score})',
+        );
         return user;
       }
       return null;
     } catch (e) {
-      log.e('[AuthService] Kullanıcı verisi parse edilirken hata oluştu', error: e);
+      log.e(
+        '[AuthService] Kullanıcı verisi parse edilirken hata oluştu',
+        error: e,
+      );
       return null;
     }
   }

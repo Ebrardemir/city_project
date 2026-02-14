@@ -3,7 +3,6 @@ import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class LocationService {
-
   Future<Position?> getCurrentPosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return null;
@@ -22,8 +21,7 @@ class LocationService {
     );
   }
 
-  Future<Placemark?> getAddressFromLatLng(
-      double lat, double lng) async {
+  Future<Placemark?> getAddressFromLatLng(double lat, double lng) async {
     final list = await placemarkFromCoordinates(lat, lng);
     if (list.isNotEmpty) return list.first;
     return null;

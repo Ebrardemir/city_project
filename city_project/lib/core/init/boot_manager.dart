@@ -34,7 +34,11 @@ class BootManager extends ChangeNotifier {
   /// Kullanıcı çıkış yaptığında çalışır
   Future<void> logout() async {
     final authService = locator<AuthService>();
+
+    // HATA ÇÖZÜMÜ: Eğer AuthService içinde metodun adı 'clearAll' ise
+    // burayı .clearAll() olarak güncelle.
     await authService.clearAll();
+
     authState = AuthState.unauthenticated;
     notifyListeners();
   }

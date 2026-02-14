@@ -18,7 +18,7 @@ class HiveManager {
 
   static Future<void> init() async {
     if (_initialized) return;
-    
+
     // 1. Hive'ı başlat
     await Hive.initFlutter();
 
@@ -37,7 +37,7 @@ class HiveManager {
       await Hive.deleteBoxFromDisk(HiveBoxes.auth);
       await Hive.openBox(HiveBoxes.auth);
     }
-    
+
     _initialized = true;
   }
 
@@ -52,7 +52,8 @@ class HiveManager {
     final box = Hive.box(HiveBoxes.auth);
     await box.put(HiveKeys.user, user);
     if (accessToken != null) await box.put(HiveKeys.accessToken, accessToken);
-    if (refreshToken != null) await box.put(HiveKeys.refreshToken, refreshToken);
+    if (refreshToken != null)
+      await box.put(HiveKeys.refreshToken, refreshToken);
   }
 
   /// Kayıtlı kullanıcıyı getirir

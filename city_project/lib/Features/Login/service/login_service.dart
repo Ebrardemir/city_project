@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import '../../../core/logger/logger.dart';
 
 class LoginService {
+  // ignore: unused_field
   final Dio _dio;
   LoginService(this._dio);
 
