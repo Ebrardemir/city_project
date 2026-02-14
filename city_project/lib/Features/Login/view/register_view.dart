@@ -39,10 +39,7 @@ class _RegisterViewState extends State<RegisterView> {
             width: size.width,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Color(0xFF1565C0),
-                  Color(0xFF42A5F5),
-                ],
+                colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -75,10 +72,7 @@ class _RegisterViewState extends State<RegisterView> {
                   const SizedBox(height: 8),
                   const Text(
                     "CityPulse topluluğuna katılın",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
                   ),
 
                   const SizedBox(height: 40),

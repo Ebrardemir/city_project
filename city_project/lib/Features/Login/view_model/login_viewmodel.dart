@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../service/login_service.dart';
 import '../../../core/services/auth_service.dart';
 
@@ -22,11 +25,53 @@ class LoginViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Backend bağlandığında burası LoginService üzerinden çağrılacak
-      await Future.delayed(const Duration(seconds: 2));
+      // Firebase Email/Password ile giriş
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+      debugPrint("[Login] Firebase ile giriş başarılı");
+    } on FirebaseAuthException catch (e) {
+      debugPrint('[Login] FirebaseAuthException: ${e.code}');
+      rethrow;
+    } catch (e) {
+      debugPrint('[Login] Bilinmeyen hata: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
-      // Başarılı giriş simülasyonu
-      debugPrint("Giriş yapılıyor: ${emailController.text}");
+  Future<void> loginWithGoogle() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      if (kIsWeb) {
+        final provider = GoogleAuthProvider()
+          ..addScope('email')
+          ..setCustomParameters({'prompt': 'select_account'});
+        await FirebaseAuth.instance.signInWithPopup(provider);
+      } else {
+        final googleUser = await GoogleSignIn(scopes: ['email']).signIn();
+        if (googleUser == null) {
+          throw Exception('Kullanıcı Google girişini iptal etti');
+        }
+        final googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        await FirebaseAuth.instance.signInWithCredential(credential);
+      }
+      debugPrint('[Login] Google ile giriş başarılı');
+    } on FirebaseAuthException catch (e) {
+      debugPrint('[Login] FirebaseAuthException: ${e.code}');
+      rethrow;
+    } catch (e) {
+      debugPrint('[Login] Google giriş hatası: $e');
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();

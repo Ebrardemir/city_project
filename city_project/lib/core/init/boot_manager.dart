@@ -15,7 +15,7 @@ class BootManager extends ChangeNotifier {
   /// Uygulama ilk açıldığında çalışır (Splash Screen aşaması)
   Future<void> startBoot() async {
     final authService = locator<AuthService>();
-    
+
     // 1. Kullanıcının oturumu var mı kontrol et
     final isLoggedIn = await authService.isLoggedIn();
 
@@ -23,7 +23,7 @@ class BootManager extends ChangeNotifier {
         ? AuthState.authenticated
         : AuthState.unauthenticated;
 
-    // 2. Yapay bir gecikme ekleyerek (veya gerçek veri çekerek) 
+    // 2. Yapay bir gecikme ekleyerek (veya gerçek veri çekerek)
     // uygulamanın hazır olduğundan emin ol
     await Future.delayed(const Duration(milliseconds: 500));
 
@@ -34,11 +34,11 @@ class BootManager extends ChangeNotifier {
   /// Kullanıcı çıkış yaptığında çalışır
   void logout() async {
     final authService = locator<AuthService>();
-    
-    // HATA ÇÖZÜMÜ: Eğer AuthService içinde metodun adı 'clearAll' ise 
+
+    // HATA ÇÖZÜMÜ: Eğer AuthService içinde metodun adı 'clearAll' ise
     // burayı .clearAll() olarak güncelle.
-    await authService.clearAll(); 
-    
+    await authService.clearAll();
+
     authState = AuthState.unauthenticated;
     notifyListeners();
   }

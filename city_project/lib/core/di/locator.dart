@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:city_project/Features/Login/view_model/login_viewmodel.dart';
 // Çekirdek Yapılandırmalar
 import 'package:city_project/core/config/app_config.dart';
-import 'package:city_project/core/services/auth_service.dart'; 
+import 'package:city_project/core/services/auth_service.dart';
 import 'package:city_project/core/network/auth_interceptor.dart';
 import 'package:city_project/core/network/logging_interceptor.dart';
 
@@ -24,7 +24,7 @@ void setupLocator() {
   // AuthService: Kullanıcı oturumunu ve güvenli depolamayı yönetir
   locator.registerLazySingleton<AuthService>(() => AuthService());
 
-   // GPS, Geocoding, kullanıcı konumu alma işlemleri
+  // GPS, Geocoding, kullanıcı konumu alma işlemleri
   locator.registerLazySingleton<LocationService>(() => LocationService());
 
   // 2. NETWORK (DIO) YAPILANDIRMASI
@@ -62,9 +62,6 @@ void setupLocator() {
     () => LoginViewModel(locator<LoginService>(), locator<AuthService>()),
   );
 
-    // LocationService bağımlılığını locator'dan alır
-  locator.registerFactory(
-    () => HomeViewModel(locator<LocationService>()),
-  );
+  // LocationService bağımlılığını locator'dan alır
+  locator.registerFactory(() => HomeViewModel(locator<LocationService>()));
 }
-

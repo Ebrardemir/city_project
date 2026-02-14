@@ -27,10 +27,7 @@ class ProfileHeader extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Text(
-                user.email,
-                style: const TextStyle(color: Colors.grey),
-              ),
+              Text(user.email, style: const TextStyle(color: Colors.grey)),
               Text(
                 "${user.role} • ${user.cityName ?? ''}",
                 style: const TextStyle(color: Colors.grey),
@@ -40,10 +37,13 @@ class ProfileHeader extends StatelessWidget {
         ),
         Column(
           children: [
-            const Text("Puan",
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1565C0))),
+            const Text(
+              "Puan",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1565C0),
+              ),
+            ),
             Text(
               "${user.score}",
               style: const TextStyle(
