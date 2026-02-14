@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/profile_view_model.dart';
 import '../widgets/profile_header.dart';
@@ -17,8 +18,7 @@ class _ProfileViewState extends State<ProfileView> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() =>
-        context.read<ProfileViewModel>().fetchProfile());
+    Future.microtask(() => context.read<ProfileViewModel>().fetchProfile());
   }
 
   @override
@@ -45,68 +45,85 @@ class _ProfileViewState extends State<ProfileView> {
           SafeArea(
             child: vm.isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(color: Colors.white))
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
                 : vm.profile == null
-                    ? const Center(
-                        child: Text("Profil yüklenemedi",
-                            style: TextStyle(color: Colors.white)))
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 10),
+                ? const Center(
+                    child: Text(
+                      "Profil yüklenemedi",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
 
-                            // Başlık
-                            const Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                "Profil",
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
+                        // Başlık
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            "Profil",
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
-
-                            const SizedBox(height: 20),
-
-                            // Glass Card
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(24),
-                              child: BackdropFilter(
-                                filter:
-                                    ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                                child: Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.9),
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      ProfileHeader(
-                                          user: vm.profile!.user),
-                                      const SizedBox(height: 20),
-                                      ProfileStats(
-                                        reports:
-                                            vm.profile!.reportsCount,
-                                        supported:
-                                            vm.profile!.supportedCount,
-                                        resolved:
-                                            vm.profile!.resolvedCount,
-                                      ),
-                                      const SizedBox(height: 20),
-                                      const Divider(),
-                                      const ProfileMenu(),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+
+                        const SizedBox(height: 20),
+
+                        // Glass Card
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: Column(
+                                children: [
+                                  ProfileHeader(user: vm.profile!.user),
+                                  const SizedBox(height: 20),
+                                  ProfileStats(
+                                    reports: vm.profile!.reportsCount,
+                                    supported: vm.profile!.supportedCount,
+                                    resolved: vm.profile!.resolvedCount,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const Divider(),
+                                  ProfileMenu(
+                                    onMyReportsTap: () {
+                                      context.push('/my-reports');
+                                    },
+                                    onCreateReportTap: () {
+                                      context.push(
+                                        '/create-report',
+                                      ); // şimdilik route yoksa sonra ekleriz
+                                    },
+                                    onLogoutTap: () async {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Çıkış yapılacak'),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
