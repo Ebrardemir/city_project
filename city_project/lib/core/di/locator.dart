@@ -2,7 +2,6 @@ import 'package:get_it/get_it.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:city_project/Features/Login/view_model/login_viewmodel.dart';
-import 'package:city_project/Features/Login/view_model/register_viewmodel.dart';
 // Çekirdek Yapılandırmalar
 import 'package:city_project/core/config/app_config.dart';
 import 'package:city_project/core/services/auth_service.dart';
@@ -13,6 +12,7 @@ import 'package:city_project/core/network/logging_interceptor.dart';
 import 'package:city_project/Features/Login/service/login_service.dart';
 // HOME FEATURE
 import 'package:city_project/core/services/location_service.dart';
+import 'package:city_project/Features/Home/service/report_service.dart';
 import 'package:city_project/Features/Home/viewmodel/home_viewmodel.dart';
 
 final locator = GetIt.instance;
@@ -27,6 +27,9 @@ void setupLocator() {
 
   // GPS, Geocoding, kullanıcı konumu alma işlemleri
   locator.registerLazySingleton<LocationService>(() => LocationService());
+
+  // İhbar (Report) servisi - Firestore kullanıyor
+  locator.registerLazySingleton<ReportService>(() => ReportService());
 
   // 2. NETWORK (DIO) YAPILANDIRMASI
   locator.registerLazySingleton<Dio>(() {
@@ -63,9 +66,9 @@ void setupLocator() {
     () => LoginViewModel(),
   );
 
-  // RegisterViewModel
-  locator.registerFactory(() => RegisterViewModel());
-
-  // LocationService bağımlılığını locator'dan alır
-  locator.registerFactory(() => HomeViewModel(locator<LocationService>()));
+  // HomeViewModel - LocationService ve ReportService bağımlılıklarını locator'dan alır
+  locator.registerFactory(() => HomeViewModel(
+        locator<LocationService>(),
+        locator<ReportService>(),
+      ));
 }
