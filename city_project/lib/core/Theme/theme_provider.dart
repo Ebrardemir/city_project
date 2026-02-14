@@ -15,8 +15,14 @@ class ThemeProvider with ChangeNotifier {
   }
 
   // Aydınlık ve Karanlık Tema Tanımları
-  final _lightTheme = ThemeData(brightness: Brightness.light, primarySwatch: Colors.blue);
-  final _darkTheme = ThemeData(brightness: Brightness.dark, primarySwatch: Colors.blue);
+  final _lightTheme = ThemeData(
+    brightness: Brightness.light,
+    primarySwatch: Colors.blue,
+  );
+  final _darkTheme = ThemeData(
+    brightness: Brightness.dark,
+    primarySwatch: Colors.blue,
+  );
 
   Future<void> toggleTheme() async {
     _isDarkMode = !_isDarkMode;

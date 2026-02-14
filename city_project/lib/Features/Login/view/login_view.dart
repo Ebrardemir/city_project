@@ -90,6 +90,47 @@ class LoginView extends StatelessWidget {
                             ),
                             const SizedBox(height: 20),
 
+                            // Google ile Giriş
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: OutlinedButton.icon(
+                                icon: const Icon(
+                                  Icons.login,
+                                  color: Color(0xFF4285F4),
+                                ),
+                                label: const Text(
+                                  "Google ile Giriş",
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                    color: Color(0xFF4285F4),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: viewModel.isLoading
+                                    ? null
+                                    : () async {
+                                        try {
+                                          await viewModel.loginWithGoogle();
+                                        } on Exception catch (e) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Google giriş başarısız: $e',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                              ),
+                            ),
+
                             // Şifre
                             AuthTextField(
                               controller: viewModel.passwordController,
@@ -123,10 +164,21 @@ class LoginView extends StatelessWidget {
                                 ),
                                 onPressed: viewModel.isLoading
                                     ? null
-                                    : () {
-                                        context.goNamed(
-                                          'home',
-                                        ); 
+                                    : () async {
+                                        try {
+                                          await viewModel.login();
+                                          // Başarılı girişte yönlendirme auth durumuna göre router tarafından yapılacak
+                                        } on Exception catch (e) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Giriş başarısız: $e',
+                                              ),
+                                            ),
+                                          );
+                                        }
                                       },
                                 child: viewModel.isLoading
                                     ? const CircularProgressIndicator(

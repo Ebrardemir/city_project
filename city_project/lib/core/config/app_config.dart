@@ -16,6 +16,5 @@ class AppConfig {
 }
 //194.27.72.32%  192.168.0.107 192.168.0.107
 
-
-  //static const String baseUrl = "http://10.0.2.2:5078/api/";
- //static const String baseUrl = "http://localhost:5078/api/";
+//static const String baseUrl = "http://10.0.2.2:5078/api/";
+//static const String baseUrl = "http://localhost:5078/api/";
