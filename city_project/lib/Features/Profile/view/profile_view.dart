@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/profile_view_model.dart';
 import '../widgets/profile_header.dart';
@@ -96,7 +97,25 @@ class _ProfileViewState extends State<ProfileView> {
                                   ),
                                   const SizedBox(height: 20),
                                   const Divider(),
-                                  const ProfileMenu(),
+                                  ProfileMenu(
+                                    onMyReportsTap: () {
+                                      context.push('/my-reports');
+                                    },
+                                    onCreateReportTap: () {
+                                      context.push(
+                                        '/create-report',
+                                      ); // şimdilik route yoksa sonra ekleriz
+                                    },
+                                    onLogoutTap: () async {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Çıkış yapılacak'),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ],
                               ),
                             ),
