@@ -1,23 +1,15 @@
 import 'dart:ui';
+import 'package:city_project/Features/Login/view_model/register_viewmodel.dart';
+import 'package:city_project/core/Router/app_router_constants.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../widgets/auth_text_field.dart';
 
-class RegisterView extends StatefulWidget {
+class RegisterView extends StatelessWidget {
   const RegisterView({super.key});
 
-  @override
-  State<RegisterView> createState() => _RegisterViewState();
-}
-
-class _RegisterViewState extends State<RegisterView> {
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-
-  String? selectedCity;
-  bool isLoading = false;
-
-  final List<String> cities = [
+  static final List<String> cities = [
     "İstanbul",
     "Ankara",
     "İzmir",
@@ -27,6 +19,7 @@ class _RegisterViewState extends State<RegisterView> {
 
   @override
   Widget build(BuildContext context) {
+    final viewModel = context.watch<RegisterViewModel>();
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
@@ -97,9 +90,36 @@ class _RegisterViewState extends State<RegisterView> {
                         ),
                         child: Column(
                           children: [
+                            // Hata mesajı göster
+                            if (viewModel.errorMessage != null)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 16),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.red.shade200),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        viewModel.errorMessage!,
+                                        style: TextStyle(
+                                          color: Colors.red.shade700,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
                             // 👤 Ad Soyad
                             AuthTextField(
-                              controller: nameController,
+                              controller: viewModel.nameController,
                               label: "Ad Soyad",
                               icon: Icons.person_outline,
                               hint: "Adınız ve soyadınız",
@@ -108,7 +128,7 @@ class _RegisterViewState extends State<RegisterView> {
 
                             // 📧 Email
                             AuthTextField(
-                              controller: emailController,
+                              controller: viewModel.emailController,
                               label: "E-posta",
                               icon: Icons.email_outlined,
                               hint: "email@belediye.bel.tr",
@@ -117,7 +137,7 @@ class _RegisterViewState extends State<RegisterView> {
 
                             // 🔒 Şifre
                             AuthTextField(
-                              controller: passwordController,
+                              controller: viewModel.passwordController,
                               label: "Şifre",
                               icon: Icons.lock_outline,
                               hint: "Güçlü bir şifre giriniz",
@@ -127,7 +147,7 @@ class _RegisterViewState extends State<RegisterView> {
 
                             // 🗺️ Şehir Dropdown (Modern Stil)
                             DropdownButtonFormField<String>(
-                              value: selectedCity,
+                              value: viewModel.selectedCity,
                               decoration: InputDecoration(
                                 labelText: "Yaşadığınız Şehir",
                                 prefixIcon: const Icon(Icons.map_outlined),
@@ -156,9 +176,7 @@ class _RegisterViewState extends State<RegisterView> {
                                 );
                               }).toList(),
                               onChanged: (value) {
-                                setState(() {
-                                  selectedCity = value;
-                                });
+                                viewModel.setSelectedCity(value);
                               },
                             ),
 
@@ -176,19 +194,29 @@ class _RegisterViewState extends State<RegisterView> {
                                     borderRadius: BorderRadius.circular(18),
                                   ),
                                 ),
-                                onPressed: isLoading
+                                onPressed: viewModel.isLoading
                                     ? null
                                     : () async {
-                                        setState(() => isLoading = true);
+                                        final success = await viewModel.register();
 
-                                        // TODO: Register Logic
-                                        await Future.delayed(
-                                          const Duration(seconds: 2),
-                                        );
+                                        if (success && context.mounted) {
+                                          // Başarılı kayıt sonrası bilgi mesajı göster
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...'),
+                                              backgroundColor: Colors.green,
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
 
-                                        setState(() => isLoading = false);
+                                          // Login sayfasına yönlendir
+                                          await Future.delayed(const Duration(seconds: 1));
+                                          if (context.mounted) {
+                                            context.goNamed(AppRouterConstants.loginRouteName);
+                                          }
+                                        }
                                       },
-                                child: isLoading
+                                child: viewModel.isLoading
                                     ? const CircularProgressIndicator(
                                         color: Colors.white,
                                         strokeWidth: 2,
@@ -203,6 +231,31 @@ class _RegisterViewState extends State<RegisterView> {
                                         ),
                                       ),
                               ),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Login sayfasına dön
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  "Zaten hesabınız var mı? ",
+                                  style: TextStyle(color: Colors.black54),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    context.goNamed(AppRouterConstants.loginRouteName);
+                                  },
+                                  child: const Text(
+                                    "Giriş Yap",
+                                    style: TextStyle(
+                                      color: Color(0xFF1565C0),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:city_project/Features/Login/view_model/login_viewmodel.dart';
+import 'package:city_project/Features/Login/view_model/register_viewmodel.dart';
 // Çekirdek Yapılandırmalar
 import 'package:city_project/core/config/app_config.dart';
 import 'package:city_project/core/services/auth_service.dart';
@@ -61,6 +62,9 @@ void setupLocator() {
   locator.registerFactory(
     () => LoginViewModel(locator<LoginService>(), locator<AuthService>()),
   );
+
+  // RegisterViewModel
+  locator.registerFactory(() => RegisterViewModel());
 
   // LocationService bağımlılığını locator'dan alır
   locator.registerFactory(() => HomeViewModel(locator<LocationService>()));
