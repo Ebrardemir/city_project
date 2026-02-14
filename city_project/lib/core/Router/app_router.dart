@@ -19,8 +19,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'app_router_constants.dart';
 import 'package:city_project/Features/MyReports/view/my_reports_view.dart';
-import 'package:city_project/Features/Messages/view/messages_view.dart';
-import 'package:city_project/Features/Messages/view/chat_view.dart';
 
 /// Firebase Auth durumunu dinleyen basit bir notifier
 class AuthNotifier extends ChangeNotifier {
@@ -96,11 +94,6 @@ class AppRouter {
         path: '/register',
         builder: (context, state) => const RegisterView(),
       ),
-      GoRoute(
-        name: AppRouterConstants.myReportsRouteName,
-        path: '/my-reports',
-        builder: (context, state) => const MyReportsView(),
-      ),
 
       GoRoute(
         name: 'report-detail',
@@ -120,17 +113,6 @@ class AppRouter {
         path: '/leaderboard',
         builder: (context, state) => const LeaderboardView(),
       ),
-      GoRoute(
-        name: 'chat',
-        path: '/chat',
-        builder: (context, state) {
-          final extras = state.extra as Map<String, dynamic>;
-          return ChatView(
-            receiverId: extras['receiverId'],
-            receiverName: extras['receiverName'],
-          );
-        },
-      ),
 
       // --- 2. VATANDAŞ (CITIZEN) - NAVBAR İLE ---
       StatefulShellRoute.indexedStack(
@@ -143,7 +125,7 @@ class AppRouter {
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Ana Sayfa'),
                 BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Yakındaki'),
-                BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Mesajlar'),
+                BottomNavigationBarItem(icon: Icon(Icons.assignment), label: 'Raporlarım'),
                 BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
               ],
               onTap: (index) => navigationShell.goBranch(index),
@@ -172,9 +154,9 @@ class AppRouter {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                name: AppRouterConstants.messagesRouteName,
-                path: '/messages',
-                builder: (context, state) => const MessagesView(),
+                name: AppRouterConstants.myReportsRouteName,
+                path: '/my-reports',
+                builder: (context, state) => const MyReportsView(),
               ),
             ],
           ),

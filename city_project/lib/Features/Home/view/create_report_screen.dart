@@ -28,8 +28,7 @@ class CreateReportScreen extends StatefulWidget {
 }
 
 class _CreateReportScreenState extends State<CreateReportScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _descriptionController = TextEditingController();
+  // Services
   final _reportService = ReportService();
   final _imageService = ImageUploadService();
   final _locationService = LocationService();
@@ -37,26 +36,87 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
-  ReportCategory _selectedCategory = ReportCategory.road;
+  // Controllers
+  final _descriptionController = TextEditingController();
+  final _pageController = PageController();
+
+  // State
+  int _currentStep = 0;
+  bool _isLoading = false;
+
+  // Form Data
   File? _selectedImage;
   LatLng? _selectedLocation;
   String? _city;
   String? _district;
+  String? _neighborhood; 
+  String? _street;       
   String? _address;
-  bool _isLoading = false;
+  ReportCategory _selectedCategory = ReportCategory.road;
 
   @override
   void initState() {
     super.initState();
     _selectedLocation = widget.initialLocation;
-    _city = widget.city;
-    _district = widget.district;
+    
+    // Eğer başlangıç konumu varsa adresi çözümle
+    if (_selectedLocation != null) {
+      _resolveAddress(_selectedLocation!);
+    } else {
+      _getCurrentLocation();
+    }
   }
 
   @override
   void dispose() {
     _descriptionController.dispose();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  // --- LOGIC: ADDRESS & LOCATION ---
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLoading = true);
+    try {
+      final position = await _locationService.getCurrentPosition();
+      if (position != null) {
+        final loc = LatLng(position.latitude, position.longitude);
+        await _resolveAddress(loc);
+      }
+    } catch (e) {
+      debugPrint('Sihirbaz Konum Hatası: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _resolveAddress(LatLng location) async {
+    try {
+      final place = await _locationService.getAddressFromLatLng(
+        location.latitude,
+        location.longitude,
+      );
+
+      setState(() {
+        _selectedLocation = location;
+        _city = place?.administrativeArea ?? 'Bilinmeyen';
+        _district = place?.subAdministrativeArea ?? place?.locality ?? 'Bilinmeyen';
+        _neighborhood = place?.subLocality;
+        _street = place?.thoroughfare ?? place?.street;
+        
+        final addressParts = <String>[];
+        if (_street != null && _street!.isNotEmpty) addressParts.add(_street!);
+        if (_neighborhood != null && _neighborhood!.isNotEmpty) addressParts.add(_neighborhood!);
+        if (_district != null) addressParts.add(_district!);
+        
+        _address = addressParts.isNotEmpty 
+            ? addressParts.join(', ') 
+            : '${location.latitude}, ${location.longitude}';
+      });
+    } catch (e) {
+      debugPrint('Adres Çözümleme Hatası: $e');
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -75,234 +135,124 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fotoğraf seçilirken hata: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Fotoğraf hatası: $e')),
+      );
     }
   }
 
-  Future<void> _getCurrentLocation() async {
-    setState(() => _isLoading = true);
-    
-    try {
-      final position = await _locationService.getCurrentPosition();
-      
-      if (position != null) {
-        final place = await _locationService.getAddressFromLatLng(
-          position.latitude,
-          position.longitude,
-        );
+  // --- LOGIC: NAVIGATION & SUBMIT ---
 
-        setState(() {
-          _selectedLocation = LatLng(position.latitude, position.longitude);
-          _city = place?.administrativeArea ?? 'Bilinmeyen';
-          _district = place?.subAdministrativeArea ?? place?.locality ?? 'Bilinmeyen';
-          
-          // Detaylı adres oluştur
-          final addressParts = <String>[];
-          if (place?.street != null && place!.street!.isNotEmpty) {
-            addressParts.add(place.street!);
-          }
-          if (place?.subLocality != null && place!.subLocality!.isNotEmpty) {
-            addressParts.add(place.subLocality!);
-          }
-          if (place?.name != null && place!.name!.isNotEmpty && !addressParts.contains(place.name)) {
-            addressParts.add(place.name!);
-          }
-          
-          _address = addressParts.isNotEmpty 
-              ? addressParts.join(', ') 
-              : '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Konum alınamadı: $e')),
-        );
-      }
-    } finally {
-      setState(() => _isLoading = false);
+  void _nextStep() {
+    // Validations
+    if (_currentStep == 0 && _selectedImage == null) {
+      _showError('Lütfen bir fotoğraf ekleyin');
+      return;
+    }
+    if (_currentStep == 1 && _selectedLocation == null) {
+      _showError('Lütfen sorunun konumunu belirleyin');
+      return;
+    }
+
+    if (_currentStep < 2) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      setState(() => _currentStep++);
+    } else {
+      _submitReport();
     }
   }
 
-  Future<void> _selectLocationFromMap() async {
-    final result = await Navigator.push<LatLng>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LocationPickerScreen(
-          initialLocation: _selectedLocation ?? widget.initialLocation,
-        ),
-      ),
+  void _prevStep() {
+    if (_currentStep > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      setState(() => _currentStep--);
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
-
-    if (result != null) {
-      setState(() => _isLoading = true);
-      
-      try {
-        final place = await _locationService.getAddressFromLatLng(
-          result.latitude,
-          result.longitude,
-        );
-
-        setState(() {
-          _selectedLocation = result;
-          _city = place?.administrativeArea ?? 'Bilinmeyen';
-          _district = place?.subAdministrativeArea ?? place?.locality ?? 'Bilinmeyen';
-          
-          // Detaylı adres oluştur
-          final addressParts = <String>[];
-          if (place?.street != null && place!.street!.isNotEmpty) {
-            addressParts.add(place.street!);
-          }
-          if (place?.subLocality != null && place!.subLocality!.isNotEmpty) {
-            addressParts.add(place.subLocality!);
-          }
-          if (place?.name != null && place!.name!.isNotEmpty && !addressParts.contains(place.name)) {
-            addressParts.add(place.name!);
-          }
-          
-          _address = addressParts.isNotEmpty 
-              ? addressParts.join(', ') 
-              : '${result.latitude.toStringAsFixed(6)}, ${result.longitude.toStringAsFixed(6)}';
-        });
-      } catch (e) {
-        setState(() {
-          _selectedLocation = result;
-          _city = 'Seçili Konum';
-          _district = '${result.latitude.toStringAsFixed(4)}, ${result.longitude.toStringAsFixed(4)}';
-          _address = 'Konum: ${result.latitude.toStringAsFixed(6)}, ${result.longitude.toStringAsFixed(6)}';
-        });
-      } finally {
-        setState(() => _isLoading = false);
-      }
-    }
   }
 
   Future<void> _submitReport() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    if (_selectedLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen konum seçin')),
-      );
-      return;
-    }
-
-    if (_selectedImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen fotoğraf ekleyin')),
-      );
+    if (_descriptionController.text.trim().isEmpty) {
+      _showError('Lütfen kısa bir açıklama yazın');
       return;
     }
 
     setState(() => _isLoading = true);
-
+    
     try {
       final currentUser = _auth.currentUser;
-      if (currentUser == null) {
-        throw Exception('Kullanıcı oturumu bulunamadı');
-      }
+      if (currentUser == null) throw Exception('Oturum kapalı');
 
-      // ✨ CLUSTERING KONTROLÜ: Yakında benzer rapor var mı?
-      print('🔍 Clustering: Yakın rapor kontrolü başlatılıyor...');
-      final nearbyReportId = await _clusteringService.checkNearbyReport(
+      // 1. Clustering Check
+      final nearbyId = await _clusteringService.checkNearbyReport(
         latitude: _selectedLocation!.latitude,
         longitude: _selectedLocation!.longitude,
         category: _selectedCategory.value,
-        radiusMeters: 20.0, // 20 metre yarıçap
+        radiusMeters: 20.0,
       );
 
-      // Eğer yakında rapor varsa, yeni rapor oluşturma - destek ekle
-      if (nearbyReportId != null) {
-        print('✅ Clustering: Yakın rapor bulundu, destek ekleniyor...');
-        
-        final success = await _clusteringService.addSupport(
-          nearbyReportId,
-          currentUser.uid,
-        );
-        
+      if (nearbyId != null) {
+        // Var olan rapora destek ver
+        final success = await _clusteringService.addSupport(nearbyId, currentUser.uid);
         if (success && mounted) {
-          Navigator.of(context).pop(true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '🎯 Bu sorun zaten bildirilmiş!',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text('Desteğiniz eklendi ve bildirim sayısı artırıldı.'),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Rapor ID: $nearbyReportId',
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ],
-              ),
+           Navigator.of(context).pop(true);
+           ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bu sorun zaten bildirilmiş! Desteğiniz eklendi.'),
               backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 4),
             ),
-          );
+           );
         }
-        return; // Yeni rapor oluşturma, fonksiyondan çık
+        return;
       }
 
-      print('✅ Clustering: Yakın rapor bulunamadı, yeni rapor oluşturuluyor...');
-
-      // Firestore'dan kullanıcı bilgi lerini çek (varsa)
-      String fullName = 'Anonim';
+      // 2. Kullanıcı Bilgisi
+      String fullName = currentUser.displayName ?? 'Kullanıcı';
       try {
-        print('🔍 Firestore\'dan kullanıcı bilgisi çekiliyor: ${currentUser.uid}');
         final userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
-        
         if (userDoc.exists) {
-          final userData = userDoc.data()!;
-          fullName = userData['fullName'] ?? userData['name'] ?? 'Anonim';
-          print('✅ Firestore kullanıcı bulundu: $fullName');
+          fullName = userDoc.data()?['fullName'] ?? fullName;
         } else {
-          print('⚠️ Firestore\'da kullanıcı bulunamadı, Auth kullanılıyor');
-          fullName = currentUser.displayName ?? currentUser.email?.split('@').first ?? 'Kullanıcı';
-          
-          print('💾 Firestore\'a kullanıcı kaydediliyor...');
+          // Eğer profil yoksa oluştur
           await _firestore.collection('users').doc(currentUser.uid).set({
-            'fullName': fullName,
-            'email': currentUser.email,
-            'role': 'citizen',
-            'score': 0,
-            'createdAt': FieldValue.serverTimestamp(),
+             'fullName': fullName,
+             'email': currentUser.email,
+             'role': 'citizen',
+             'score': 0,
+             'createdAt': FieldValue.serverTimestamp(),
           });
-          print('✅ Kullanıcı Firestore\'a kaydedildi');
         }
-      } catch (e) {
-        print('❌ Firestore hatası: $e');
-        fullName = currentUser.displayName ?? currentUser.email?.split('@').first ?? 'Kullanıcı';
-      }
+      } catch (_) {}
 
-      // Fotoğrafı yükle
+      // 3. Resim Yükle
       String? imageUrl;
       if (_selectedImage != null) {
         imageUrl = await _imageService.uploadReportImage(
           imageFile: _selectedImage!,
           userId: currentUser.uid,
         );
-
-        if (imageUrl == null) {
-          throw Exception('Fotoğraf yüklenemedi');
-        }
       }
 
-      // İhbar oluştur
+      // 4. Raporu Kaydet
       final report = await _reportService.createReport(
         userId: currentUser.uid,
         userFullName: fullName,
-        city: _city ?? 'Bilinmeyen',
-        district: _district ?? 'Bilinmeyen',
+        city: _city ?? widget.city ?? 'Bilinmeyen',
+        district: _district ?? widget.district ?? 'Bilinmeyen',
+        neighborhood: _neighborhood,
+        street: _street,
         address: _address,
         category: _selectedCategory,
         description: _descriptionController.text.trim(),
@@ -312,321 +262,229 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
       );
 
       if (report != null) {
-        // 🆕 GAMIFICATION: Rapor oluşturma puanı ver
-        try {
-          await GamificationService().onReportCreated(
-            currentUser.uid,
-            report.id,
-          );
-          print('🎮 Gamification: +10 puan eklendi (rapor oluşturma)');
-        } catch (e) {
-          print('⚠️ Gamification hatası: $e');
-        }
+        // Puan Kazan
+        await GamificationService().onReportCreated(currentUser.uid, report.id);
         
         if (mounted) {
           Navigator.of(context).pop(true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('✅ İhbar başarıyla oluşturuldu! +10 puan kazandınız!'),
+              content: Text('Raporunuz başarıyla oluşturuldu! +10 Puan'),
               backgroundColor: Colors.green,
             ),
           );
         }
-      } else {
-        throw Exception('İhbar oluşturulamadı');
       }
+
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Hata: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError('Hata: $e');
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  // --- UI COMPONENTS ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Yeni İhbar Oluştur'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        title: const Text('Yeni İhbar', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4.0),
+          child: LinearProgressIndicator(
+            value: (_currentStep + 1) / 3,
+            backgroundColor: Colors.grey[200],
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.amber[700]!),
+          ),
+        ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Column(
           children: [
-            // Kategori Seçimi
-            const Text(
-              'Kategori',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: ReportCategory.values.map((category) {
-                final isSelected = _selectedCategory == category;
-                return ChoiceChip(
-                  label: Text(category.label),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() => _selectedCategory = category);
-                    }
-                  },
-                  selectedColor: Colors.blue,
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black87,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
-
-            // Açıklama
-            const Text(
-              'Açıklama',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _descriptionController,
-              maxLines: 4,
-              maxLength: 500,
-              decoration: InputDecoration(
-                hintText: 'Sorunu detaylı olarak açıklayın...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            // Header Helper Text
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                _getStepTitle(),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Lütfen açıklama girin';
-                }
-                if (value.trim().length < 10) {
-                  return 'Açıklama en az 10 karakter olmalı';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-
-            // Fotoğraf
-            const Text(
-              'Fotoğraf',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                textAlign: TextAlign.center,
               ),
             ),
-            const SizedBox(height: 12),
-            if (_selectedImage != null)
-              Stack(
+            
+            // Main Content
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(), // Kaydırmayı kapat
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      _selectedImage!,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: IconButton(
-                      onPressed: () => setState(() => _selectedImage = null),
-                      icon: const Icon(Icons.close),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            else
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _pickImage(ImageSource.camera),
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Kamera'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _pickImage(ImageSource.gallery),
-                      icon: const Icon(Icons.photo_library),
-                      label: const Text('Galeri'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            const SizedBox(height: 24),
-
-            // Konum
-            const Text(
-              'Konum',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _selectedLocation != null
-                    ? Colors.green.shade50
-                    : Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _selectedLocation != null
-                      ? Colors.green.shade200
-                      : Colors.orange.shade200,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _selectedLocation != null
-                            ? Icons.check_circle
-                            : Icons.location_off,
-                        color: _selectedLocation != null
-                            ? Colors.green.shade700
-                            : Colors.orange.shade700,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _selectedLocation != null
-                              ? '$_district, $_city'
-                              : 'Konum seçilmedi',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _selectedLocation != null
-                                ? Colors.green.shade700
-                                : Colors.orange.shade700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_selectedLocation != null) ...[
-                    const SizedBox(height: 8),
-                    if (_address != null && _address!.isNotEmpty) ...[
-                      Text(
-                        _address!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    Text(
-                      '${_selectedLocation!.latitude.toStringAsFixed(6)}, ${_selectedLocation!.longitude.toStringAsFixed(6)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _getCurrentLocation,
-                          icon: const Icon(Icons.my_location, size: 18),
-                          label: const Text('Konumum'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _isLoading ? null : _selectLocationFromMap,
-                          icon: const Icon(Icons.map, size: 18),
-                          label: const Text('Haritadan Seç'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.blue,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildStep1Evidence(),
+                  _buildStep2Location(),
+                  _buildStep3Details(),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            
+            // Bottom Action Bar
+            _buildBottomBar(),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Gönder Butonu
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _submitReport,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+  String _getStepTitle() {
+    switch (_currentStep) {
+      case 0: return 'Fotoğraf Çek';
+      case 1: return 'Konumu Doğrula';
+      case 2: return 'Detayları Gir';
+      default: return '';
+    }
+  }
+
+  Widget _buildBottomBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            offset: const Offset(0, -4),
+            blurRadius: 10,
+          )
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Back Button
+          if (_currentStep > 0)
+            TextButton.icon(
+              onPressed: _isLoading ? null : _prevStep,
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Geri'),
+              style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
+            )
+          else
+            const SizedBox(width: 80), // Spacer
+
+          // Steps Indicator (Dots)
+          Row(
+            children: List.generate(3, (index) {
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _currentStep == index ? Colors.amber : Colors.grey[300],
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'İhbar Oluştur',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+              );
+            }),
+          ),
+
+          // Next/Finish Button
+          ElevatedButton(
+            onPressed: _isLoading ? null : _nextStep,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            ),
+            child: _isLoading 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : Text(_currentStep == 2 ? 'Gönder' : 'İleri'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- STEP 1: EVIDENCE (Proof) ---
+  Widget _buildStep1Evidence() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (_selectedImage == null) ...[
+            _buildBigButton(
+              icon: Icons.camera_alt_rounded,
+              label: 'Kamerayı Aç',
+              onTap: () => _pickImage(ImageSource.camera),
+              color: Colors.blue[50]!,
+              iconColor: Colors.blue,
+            ),
+            const SizedBox(height: 20),
+            _buildBigButton(
+              icon: Icons.photo_library_rounded,
+              label: 'Galeriden Seç',
+              onTap: () => _pickImage(ImageSource.gallery),
+              color: Colors.purple[50]!,
+              iconColor: Colors.purple,
+            ),
+          ] else ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.file(
+                _selectedImage!,
+                height: 400,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextButton.icon(
+              onPressed: () => setState(() => _selectedImage = null),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Fotoğrafı Değiştir'),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBigButton({
+    required IconData icon, 
+    required String label, 
+    required VoidCallback onTap,
+    required Color color,
+    required Color iconColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: iconColor.withOpacity(0.3), width: 2),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 64, color: iconColor),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: iconColor,
               ),
             ),
           ],
@@ -634,156 +492,193 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
       ),
     );
   }
-}
 
-// Haritadan Konum Seçme Ekranı
-class LocationPickerScreen extends StatefulWidget {
-  final LatLng? initialLocation;
+  // --- STEP 2: LOCATION ---
+  Widget _buildStep2Location() {
+    return Stack(
+      children: [
+        if (_selectedLocation == null && _isLoading)
+           const Center(child: CircularProgressIndicator())
+        else
+        GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: _selectedLocation ?? const LatLng(41.0082, 28.9784),
+            zoom: 15,
+          ),
+          onMapCreated: (controller) {
+            // Harita stilini burada ayarlayabilirsiniz
+          },
+          onTap: (latLng) {
+            _resolveAddress(latLng);
+          },
+          markers: _selectedLocation != null ? {
+            Marker(
+              markerId: const MarkerId('selected'),
+              position: _selectedLocation!,
+              infoWindow: const InfoWindow(title: 'Sorun Burada'),
+            ),
+          } : {},
+          myLocationEnabled: true,
+          myLocationButtonEnabled: false,
+        ),
+        
+        // Location Fab
+        Positioned(
+          right: 16,
+          top: 16,
+          child: FloatingActionButton(
+            heroTag: 'loc_btn',
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.my_location, color: Colors.black87),
+            onPressed: _getCurrentLocation,
+          ),
+        ),
 
-  const LocationPickerScreen({super.key, this.initialLocation});
-
-  @override
-  State<LocationPickerScreen> createState() => _LocationPickerScreenState();
-}
-
-class _LocationPickerScreenState extends State<LocationPickerScreen> {
-  late LatLng _selectedLocation;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedLocation = widget.initialLocation ?? const LatLng(41.0082, 28.9784);
+        // Address Card
+        Positioned(
+          bottom: 16,
+          left: 16,
+          right: 16,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Seçilen Adres:',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _address ?? 'Konum seçilmedi',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Konum Seç'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: () => Navigator.pop(context, _selectedLocation),
-            icon: const Icon(Icons.check),
-            tooltip: 'Onayla',
+  // --- STEP 3: DETAILS ---
+  Widget _buildStep3Details() {
+    final categories = ReportCategory.values.where((c) => c != ReportCategory.other).toList();
+    // Diğer'i sona ekle
+    categories.add(ReportCategory.other);
+
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const Text(
+          'Sorun Kategorisi',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 0.9,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
           ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _selectedLocation,
-              zoom: 16,
-            ),
-            mapType: MapType.terrain,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
-            onTap: (latLng) {
-              setState(() {
-                _selectedLocation = latLng;
-              });
-            },
-            markers: {
-              Marker(
-                markerId: const MarkerId('selected'),
-                position: _selectedLocation,
-                draggable: true,
-                onDragEnd: (latLng) {
-                  setState(() {
-                    _selectedLocation = latLng;
-                  });
-                },
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-              ),
-            },
-          ),
-          
-          // Bilgi Kartı
-          Positioned(
-            bottom: 24,
-            left: 16,
-            right: 16,
-            child: Card(
-              elevation: 8,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+          itemCount: categories.length,
+          itemBuilder: (context, index) {
+            final cat = categories[index];
+            final isSelected = _selectedCategory == cat;
+            return InkWell(
+              onTap: () => setState(() => _selectedCategory = cat),
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.amber[100] : Colors.white,
+                  border: Border.all(
+                    color: isSelected ? Colors.amber : Colors.grey[200]!,
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Haritaya dokunun veya pini sürükleyin',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      _getCategoryIcon(cat),
+                      size: 32,
+                      color: isSelected ? Colors.black : Colors.grey[600],
                     ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.location_on, color: Colors.red[700], size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '${_selectedLocation.latitude.toStringAsFixed(6)}, ${_selectedLocation.longitude.toStringAsFixed(6)}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontFamily: 'monospace',
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context, _selectedLocation),
-                        icon: const Icon(Icons.check_circle),
-                        label: const Text(
-                          'Konumu Onayla',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                    const SizedBox(height: 8),
+                    Text(
+                      cat.label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? Colors.black : Colors.grey[700],
                       ),
                     ),
                   ],
                 ),
               ),
+            );
+          },
+        ),
+
+        const SizedBox(height: 32),
+        
+        const Text(
+          'Açıklama',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _descriptionController,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: 'Sorunu kısaca açıklayın...',
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
+
+  IconData _getCategoryIcon(ReportCategory cat) {
+    switch (cat) {
+      case ReportCategory.road: return Icons.add_road;
+      case ReportCategory.park: return Icons.park;
+      case ReportCategory.water: return Icons.water_drop;
+      case ReportCategory.garbage: return Icons.delete;
+      case ReportCategory.lighting: return Icons.lightbulb;
+      default: return Icons.error_outline;
+    }
+  }
 }
+

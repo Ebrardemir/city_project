@@ -91,6 +91,32 @@ class ReportCard extends StatelessWidget {
                       ],
                     ),
 
+                    const SizedBox(height: 4),
+
+                    // Konum
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: cs.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '${report.district}, ${report.city}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: cs.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+
                     const SizedBox(height: 6),
 
                     // Description

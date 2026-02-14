@@ -30,6 +30,8 @@ class ReportModel {
   final String userFullName;
   final String city;
   final String district;
+  final String? neighborhood; // Mahalle
+  final String? street;       // Cadde/Sokak
   final String? address;
   final ReportCategory category;
   final String description;
@@ -50,6 +52,8 @@ class ReportModel {
     required this.userFullName,
     required this.city,
     required this.district,
+    this.neighborhood,
+    this.street,
     this.address,
     required this.category,
     required this.description,
@@ -74,6 +78,8 @@ class ReportModel {
       userFullName: json['userFullName'] ?? 'Anonim',
       city: json['city'] ?? '',
       district: json['district'] ?? '',
+      neighborhood: json['neighborhood'],
+      street: json['street'],
       address: json['address'],
       category: ReportCategory.values.firstWhere(
         (e) => e.value == json['category'],
@@ -117,6 +123,8 @@ class ReportModel {
       'userFullName': userFullName,
       'city': city,
       'district': district,
+      'neighborhood': neighborhood,
+      'street': street,
       'address': address,
       'category': category.value,
       'description': description,

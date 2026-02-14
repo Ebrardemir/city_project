@@ -1,79 +1,73 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../Home/model/report_model.dart';
 
 class MyReportsService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   Future<List<ReportModel>> fetchMyReports() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return [];
 
-    // Mock image: network yerine placeholder kullan (backend gelince URL olacak)
-    const img = 'https://picsum.photos/seed/';
+      print('📥 MyReportsService: Kullanıcı raporları çekiliyor (${user.uid})...');
 
-    return [
-      ReportModel(
-        id: '1',
-        userId: 'user_123',
-        userFullName: 'Test Kullanıcı',
-        city: 'İstanbul',
-        district: 'Kadıköy',
-        category: ReportCategory.road,
-        description: 'Ana cadde üzerinde büyük çukur var, araçlar zorlanıyor.',
-        latitude: 40.9897,
-        longitude: 29.0272,
-        imageUrlBefore: '${img}pothole/300/300',
-        status: ReportStatus.pending,
-        supportCount: 3,
-        supportedUserIds: [],
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      ReportModel(
-        id: '2',
-        userId: 'user_123',
-        userFullName: 'Test Kullanıcı',
-        city: 'İstanbul',
-        district: 'Kadıköy',
-        category: ReportCategory.lighting,
-        description: 'Park girişindeki lamba yanmıyor, akşam çok karanlık oluyor.',
-        latitude: 40.9897,
-        longitude: 29.0272,
-        imageUrlBefore: '${img}lamp/300/300',
-        status: ReportStatus.approved,
-        supportCount: 7,
-        supportedUserIds: [],
-        createdAt: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-      ),
-      ReportModel(
-        id: '3',
-        userId: 'user_123',
-        userFullName: 'Test Kullanıcı',
-        city: 'İstanbul',
-        district: 'Kadıköy',
-        category: ReportCategory.garbage,
-        description: 'Konteyner taşmış, çevresi çok kirli.',
-        latitude: 40.9897,
-        longitude: 29.0272,
-        imageUrlBefore: '${img}trash/300/300',
-        imageUrlAfter: '${img}trash_after/300/300',
-        status: ReportStatus.resolved,
-        supportCount: 12,
-        supportedUserIds: [],
-        createdAt: DateTime.now().subtract(const Duration(days: 4)),
-        resolvedAt: DateTime.now().subtract(const Duration(days: 2)),
-      ),
-      ReportModel(
-        id: '4',
-        userId: 'user_123',
-        userFullName: 'Test Kullanıcı',
-        city: 'İstanbul',
-        district: 'Kadıköy',
-        category: ReportCategory.water,
-        description: 'Kaldırım kenarında sürekli su akıyor.',
-        latitude: 40.9897,
-        longitude: 29.0272,
-        imageUrlBefore: '${img}water/300/300',
-        status: ReportStatus.fake,
-        supportCount: 1,
-        supportedUserIds: [],
-        createdAt: DateTime.now().subtract(const Duration(days: 2, hours: 5)),
-      ),
-    ];
+      final snapshot = await _firestore
+          .collection('reports')
+          .where('userId', isEqualTo: user.uid)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      final reports = snapshot.docs.map((doc) {
+        try {
+          final data = doc.data();
+          data['id'] = doc.id;
+          return ReportModel.fromJson(data);
+        } catch (e) {
+          print('❌ MyReportsService: Parse hatası (${doc.id}): $e');
+          return null;
+        }
+      }).whereType<ReportModel>().toList();
+
+      print('✅ MyReportsService: ${reports.length} rapor başarıyla yüklendi.');
+      return reports;
+    } catch (e) {
+      print('❌ MyReportsService: Hata: $e');
+      // İndex hatası olabilir, ona özel mesaj
+      if (e.toString().contains('failed-precondition')) {
+        print('⚠️ İndex hatası: Lütfen Firestore konsoldan gerekli indexi oluşturun.');
+        // Fallback: Client-side sorting
+        return await _fetchWithoutIndex();
+      }
+      return [];
+    }
+  }
+
+  // İndex yoksa sıralamasız çekip client-side sırala
+  Future<List<ReportModel>> _fetchWithoutIndex() async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      final snapshot = await _firestore
+          .collection('reports')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      final reports = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return ReportModel.fromJson(data);
+      }).toList();
+
+      // Client-side sıralama
+      reports.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      return reports;
+    } catch (e) {
+      print('❌ MyReportsService Fallback Hata: $e');
+      return [];
+    }
   }
 }

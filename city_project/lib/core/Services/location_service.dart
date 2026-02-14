@@ -4,20 +4,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class LocationService {
   Future<Position?> getCurrentPosition() async {
-    // Konum servisi aktif mi?
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      print('❌ LocationService: Konum servisi kapalı');
-      return null;
-    }
-
-    // İzin kontrolü
+    // 1. Önce izinleri kontrol et ve iste
     LocationPermission permission = await Geolocator.checkPermission();
-    print('📍 LocationService: Mevcut izin durumu: $permission');
-
+    
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      print('📍 LocationService: İzin istendi, yeni durum: $permission');
       if (permission == LocationPermission.denied) {
         print('❌ LocationService: Konum izni reddedildi');
         return null;
@@ -26,24 +17,42 @@ class LocationService {
 
     if (permission == LocationPermission.deniedForever) {
       print('❌ LocationService: Konum izni kalıcı olarak reddedildi');
+      // Kullanıcıyı ayarlara yönlendirmek iyi bir fikir olabilir
+      // await Geolocator.openAppSettings();
+      return null;
+    }
+
+    // 2. İzin alındıysa, servis açık mı diye bak
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      print('❌ LocationService: Konum servisi (GPS) kapalı');
+      // Kullanıcıdan servisi açmasını iste
+      await Geolocator.openLocationSettings();
+      // Ayarlar açıldıktan sonra kullanıcı geri döndüğünde tekrar kontrol etmek gerekebilir
+      // Ancak blocking olmaması için burada null dönüyoruz, kullanıcı tekrar dener
       return null;
     }
 
     print('⏳ LocationService: Konum alınıyor...');
     try {
-      // En yüksek doğruluk ve 10 saniye timeout
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 10),
+      // 3. Konum Ayarlarını Yapılandır
+      // Android ve iOS için özel ayarlar, daha hızlı sonuç için
+      const LocationSettings locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high, // 'best' yerine 'high' genellikle daha hızlıdır ve yeterlidir
+        distanceFilter: 10,
       );
+
+      // Konum almayı dene (Timeout süresini 15 saniyeye çıkardık)
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: locationSettings,
+      ).timeout(const Duration(seconds: 15));
       
       print('✅ LocationService: Konum alındı: ${position.latitude}, ${position.longitude}');
-      print('📊 LocationService: Doğruluk: ${position.accuracy}m');
       return position;
     } catch (e) {
       print('❌ LocationService: Konum alma hatası: $e');
       
-      // Timeout olursa son bilinen konumu dene
+      // Hata durumunda (Timeout vb.) son bilinen konumu dene
       try {
         print('⏳ LocationService: Son bilinen konum alınıyor...');
         final lastPosition = await Geolocator.getLastKnownPosition();

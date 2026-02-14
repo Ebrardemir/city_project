@@ -18,6 +18,7 @@ class MunicipalityService {
   /// Returns: Rapor listesi ve son doküman (PaginationResult)
   Future<({List<ReportModel> reports, DocumentSnapshot? lastDoc})> getReportsForMunicipalityPaginated({
     required List<String> districts,
+    String? city, // Opsiyonel şehir filtresi (Büyükşehir için)
     ReportStatus? statusFilter,
     ReportCategory? categoryFilter,
     DocumentSnapshot? lastDocument,
@@ -28,9 +29,16 @@ class MunicipalityService {
       
       Query query = _firestore.collection('reports');
       
-      // İlçe filtresi
+      // FİLTRELEME MANTIĞI:
+      // 1. Eğer districts boş ise ve city varsa -> Şehir bazlı (Büyükşehir/İl kullanıcısı)
+      // 2. Eğer districts dolu ise -> İlçe bazlı (İlçe Belediyesi)
+      
       if (districts.isNotEmpty) {
+        // İlçe belediyesi veya belirli ilçelere bakan yetkili
         query = query.where('district', whereIn: districts);
+      } else if (city != null && city.isNotEmpty) {
+        // İl belediyesi (Tüm şehri görür, districts listesi boştur)
+        query = query.where('city', isEqualTo: city);
       }
       
       // Durum filtresi
@@ -44,7 +52,14 @@ class MunicipalityService {
       }
       
       // Sıralama - en yeni raporlar önce
-      query = query.orderBy('createdAt', descending: true);
+      // NOT: Firestore'da composite index hatalarını önlemek için client-side sıralama yapabiliriz
+      // Ancak çok fazla veri varsa bu performans sorunu yaratır.
+      // Şimdilik index hatası alınırsa sıralamayı kaldırıp client tarafında yapacağız.
+      try {
+         query = query.orderBy('createdAt', descending: true);
+      } catch (e) {
+         print('⚠️ orderBy hatası (Index eksik olabilir): $e');
+      }
       
       // Sayfalama başlangıç noktası
       if (lastDocument != null) {
@@ -60,7 +75,7 @@ class MunicipalityService {
         return (reports: <ReportModel>[], lastDoc: null);
       }
 
-      final reports = snapshot.docs.map((doc) {
+      var reports = snapshot.docs.map((doc) {
         try {
           final data = doc.data() as Map<String, dynamic>;
           data['id'] = doc.id;
@@ -71,10 +86,90 @@ class MunicipalityService {
         }
       }).whereType<ReportModel>().toList();
       
+      // Client-side sıralama (Yedek)
+      // Eğer Firestore sıralaması çalışmadıysa veya index yoksa burada sıralayalım
+      // Not: Pagination ile çalışırken bu tam doğru olmayabilir ama hiç veri gelmemesinden iyidir.
+      reports.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
       return (reports: reports, lastDoc: snapshot.docs.last);
 
     } catch (e) {
+      if (e.toString().contains('failed-precondition') || e.toString().contains('index')) {
+         print('⚠️ Index hatası algılandı, sıralamasız tekrar deneniyor...');
+         return getReportsForMunicipalityPaginatedWithoutSort(
+            districts: districts,
+            city: city,
+            statusFilter: statusFilter,
+            categoryFilter: categoryFilter,
+            lastDocument: lastDocument,
+            limit: limit
+         );
+      }
       print('❌ getReportsForMunicipalityPaginated hatası: $e');
+      return (reports: <ReportModel>[], lastDoc: null);
+    }
+  }
+
+  /// Index hatası durumunda sıralamasız (client side sort) çalışan yedek metot
+  Future<({List<ReportModel> reports, DocumentSnapshot? lastDoc})> getReportsForMunicipalityPaginatedWithoutSort({
+    required List<String> districts,
+    String? city,
+    ReportStatus? statusFilter,
+    ReportCategory? categoryFilter,
+    DocumentSnapshot? lastDocument,
+    int limit = 10,
+  }) async {
+    try {
+      Query query = _firestore.collection('reports');
+      
+      if (districts.isNotEmpty) {
+        query = query.where('district', whereIn: districts);
+      } else if (city != null && city.isNotEmpty) {
+        query = query.where('city', isEqualTo: city);
+      }
+      
+      if (statusFilter != null) {
+        query = query.where('status', isEqualTo: statusFilter.value);
+      }
+      
+      if (categoryFilter != null) {
+        query = query.where('category', isEqualTo: categoryFilter.value);
+      }
+      
+      // Sıralama YOK (Index gerektirmez)
+      
+      // Not: StartAfter sıralama olmadan düzgün çalışmaz, 
+      // bu yüzden pagination bu fallback modunda kısıtlı çalışır.
+      // Yine de hiç veri görememekten iyidir.
+      if (lastDocument != null) {
+         // Sıralama olmadığı için startAfterDocument tam beklenen sonucu vermeyebilir 
+         // ama Firestore doc referansına göre yine de bir sonraki seti getirebilir.
+         // query = query.startAfterDocument(lastDocument); 
+         // Düzeltme: startAfterDocument sıralama olmadan kullanılamaz (veya document ID sıralaması gerekir).
+         // Şimdilik pagination'ı es geçip sadece limit koyuyoruz veya limiti artırıyoruz.
+         query = query.limit(limit * 2); 
+      } else {
+         query = query.limit(limit);
+      }
+
+      final snapshot = await query.get();
+      
+      var reports = snapshot.docs.map((doc) {
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          return ReportModel.fromJson(data);
+        } catch (e) {
+          return null;
+        }
+      }).whereType<ReportModel>().toList();
+      
+      // Client tarafında sırala
+      reports.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      return (reports: reports, lastDoc: snapshot.docs.isNotEmpty ? snapshot.docs.last : null);
+    } catch (e) {
+      print('❌ Fallback hatası: $e');
       return (reports: <ReportModel>[], lastDoc: null);
     }
   }
@@ -290,6 +385,42 @@ class MunicipalityService {
     } catch (e) {
       print('❌ MunicipalityService: Rapor işaretlenirken hata: $e');
       return false;
+    }
+  }
+
+  /// Veritabanındaki benzersiz şehirleri getirir (Debug için)
+  Future<List<String>> getAvailableCities() async {
+    try {
+      final snapshot = await _firestore.collection('reports').get();
+      final cities = snapshot.docs
+          .map((doc) => doc.data()['city'] as String?)
+          .where((city) => city != null && city.isNotEmpty)
+          .toSet()
+          .toList();
+      cities.sort();
+      return List<String>.from(cities);
+    } catch (e) {
+      print('❌ getAvailableCities hata: $e');
+      return [];
+    }
+  }
+  
+  /// Seçili şehirdeki benzersiz ilçeleri getirir (Debug için)
+  Future<List<String>> getAvailableDistricts(String city) async {
+    try {
+      final snapshot = await _firestore.collection('reports')
+          .where('city', isEqualTo: city)
+          .get();
+      final districts = snapshot.docs
+          .map((doc) => doc.data()['district'] as String?)
+          .where((d) => d != null && d.isNotEmpty)
+          .toSet()
+          .toList();
+      districts.sort();
+      return List<String>.from(districts);
+    } catch (e) {
+      print('❌ getAvailableDistricts hata: $e');
+      return [];
     }
   }
   

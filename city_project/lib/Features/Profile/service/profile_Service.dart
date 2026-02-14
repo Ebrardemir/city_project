@@ -12,16 +12,37 @@ class ProfileService {
 
     try {
       // Firestore'dan kullanıcı verisini çek
-      final userDoc = await FirebaseFirestore.instance
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUser.uid)
           .get();
 
       if (!userDoc.exists) {
-        throw Exception('Kullanıcı profili bulunamadı');
+        print('⚠️ ProfileService: Kullanıcı dokümanı bulunamadı. Otomatik oluşturuluyor...');
+        
+        // Eksik profili oluştur
+        final newUser = {
+          'fullName': currentUser.displayName ?? 'İsimsiz Kullanıcı',
+          'email': currentUser.email ?? '',
+          'role': 'citizen',
+          'score': 0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'districts': [],
+        };
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .set(newUser);
+            
+        // Yeni oluşturulan veriyi çek
+        userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
       }
 
-      final userData = userDoc.data()!;
+      final userData = userDoc.data() as Map<String, dynamic>;
       final user = UserModel(
         id: currentUser.uid,
         fullName: userData['fullName'] ?? currentUser.displayName ?? 'Kullanıcı',

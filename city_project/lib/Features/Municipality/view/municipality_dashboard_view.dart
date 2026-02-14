@@ -30,6 +30,11 @@ class _MunicipalityDashboardViewState extends State<MunicipalityDashboardView> {
         title: const Text('🏛️ Belediye Yönetim Paneli'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () => _showDebugDialog(context),
+            tooltip: 'Debug: Belediye Değiştir',
+          ),
+          IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: () => _showFilterSheet(context),
             tooltip: 'Filtrele',
@@ -92,6 +97,31 @@ class _MunicipalityDashboardViewState extends State<MunicipalityDashboardView> {
             onRefresh: viewModel.refresh,
             child: Column(
               children: [
+                // Belediye Bilgisi
+                if (viewModel.currentUser != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    color: Colors.blue.shade50,
+                    child: Column(
+                      children: [
+                        Text(
+                          '${viewModel.currentUser!.city ?? "-"} / ${viewModel.currentUser!.district ?? "Tümü"}',
+                          style: TextStyle(
+                            fontSize: 16, 
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade900
+                          ),
+                        ),
+                        if (viewModel.userDistricts.isNotEmpty)
+                          Text(
+                            'Sorumlu ilçeler: ${viewModel.userDistricts.join(", ")}',
+                            style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+                          ),
+                      ],
+                    ),
+                  ),
+
                 // İstatistik Kartları
                 _buildStatsSection(viewModel),
                 
@@ -249,13 +279,40 @@ class _MunicipalityDashboardViewState extends State<MunicipalityDashboardView> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      '📍 ${report.district}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '${report.district}, ${report.city}',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                    if (report.neighborhood != null) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const SizedBox(width: 18), // Icon alignment indent
+                          Expanded(
+                            child: Text(
+                              report.neighborhood!,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       report.description,
@@ -310,7 +367,7 @@ class _MunicipalityDashboardViewState extends State<MunicipalityDashboardView> {
   ) {
     switch (report.status) {
       case ReportStatus.pending:
-        return Column(
+        return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
@@ -333,14 +390,36 @@ class _MunicipalityDashboardViewState extends State<MunicipalityDashboardView> {
               tooltip: 'Onayla',
             ),
             IconButton(
+              icon: const Icon(Icons.block, color: Colors.red),
+              onPressed: () async {
+                final confirmed = await _showConfirmDialog(
+                  context,
+                  'Raporu Reddet / Sahte',
+                  'Bu raporu sahte veya geçersiz olarak işaretlemek istiyor musunuz?',
+                );
+                if (confirmed) {
+                  await viewModel.markReportAsFake(report.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Rapor sahte olarak işaretlendi ❌')),
+                    );
+                  }
+                }
+              },
+              tooltip: 'Reddet / Sahte',
+            ),
+            IconButton(
               icon: const Icon(Icons.build, color: Colors.blue),
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => ResolveReportView(report: report),
                   ),
                 );
+                if (result == true) {
+                  viewModel.refresh();
+                }
               },
               tooltip: 'Çöz',
             ),
@@ -348,22 +427,50 @@ class _MunicipalityDashboardViewState extends State<MunicipalityDashboardView> {
         );
         
       case ReportStatus.approved:
-        return ElevatedButton.icon(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ResolveReportView(report: report),
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+             IconButton(
+              icon: const Icon(Icons.block, color: Colors.red, size: 20),
+              onPressed: () async {
+                final confirmed = await _showConfirmDialog(
+                  context,
+                  'Raporu Reddet / Sahte',
+                  'Bu raporu sahte veya geçersiz olarak işaretlemek istiyor musunuz?',
+                );
+                if (confirmed) {
+                  await viewModel.markReportAsFake(report.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Rapor sahte olarak işaretlendi ❌')),
+                    );
+                  }
+                }
+              },
+              tooltip: 'Reddet / Sahte',
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ResolveReportView(report: report),
+                  ),
+                );
+                if (result == true) {
+                  viewModel.refresh();
+                }
+              },
+              icon: const Icon(Icons.build, size: 18),
+              label: const Text('Çöz'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
-            );
-          },
-          icon: const Icon(Icons.build, size: 18),
-          label: const Text('Çöz'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
+            ),
+          ],
         );
         
       case ReportStatus.resolved:
@@ -563,6 +670,128 @@ class _MunicipalityDashboardViewState extends State<MunicipalityDashboardView> {
       case ReportCategory.other:
         return Icons.more_horiz;
     }
+  }
+
+  void _showDebugDialog(BuildContext context) {
+    // ViewModel'in kendisini saklayalım, context'i sürekli okumayalım
+    final viewModel = context.read<MunicipalityViewModel>();
+    
+    // Şehirleri yüklemeyi başlat
+    viewModel.loadDebugCities();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        String? selectedCity = viewModel.currentUser?.city ?? "İstanbul";
+        String? selectedDistrict = viewModel.currentUser?.district;
+        List<String> currentDistricts = [];
+        bool isLoadingDistricts = false;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            // Şehir seçili ama ilçeler henüz yüklenmediyse yükle
+            if (selectedCity != null && currentDistricts.isEmpty && !isLoadingDistricts) {
+               isLoadingDistricts = true;
+               // Not: Dialog build esnasında setState çağırmamak için future kullanıyoruz
+               Future.microtask(() async {
+                 final list = await viewModel.getDebugDistricts(selectedCity!);
+                 if (context.mounted) {
+                   setState(() {
+                     currentDistricts = list;
+                     isLoadingDistricts = false;
+                     // Eğer seçili ilçe yeni listede yoksa temizle
+                     if (selectedDistrict != null && !currentDistricts.contains(selectedDistrict)) {
+                       selectedDistrict = null;
+                     }
+                   });
+                 }
+               });
+            }
+
+            // Şehir Listesi (ViewModel'den alıyoruz, eğer boşsa manuel ekleyelim veya bekleyelim)
+            final cities = viewModel.availableDebugCities.isNotEmpty 
+                ? viewModel.availableDebugCities 
+                : [selectedCity!];
+
+            return AlertDialog(
+              title: const Text('Debug: Belediye Değiştir'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Veritabanında kaydı bulunan şehir/ilçeler listelenir.', 
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // ŞEHİR SEÇİMİ
+                    DropdownButtonFormField<String>(
+                      value: cities.contains(selectedCity) ? selectedCity : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Şehir',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            selectedCity = val;
+                            selectedDistrict = null;
+                            currentDistricts = []; // Temizle ki yeniden yüklensin
+                            isLoadingDistricts = false;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // İLÇE SEÇİMİ
+                    if (isLoadingDistricts)
+                      const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(),
+                      )
+                    else
+                      DropdownButtonFormField<String>(
+                        value: selectedDistrict,
+                        decoration: const InputDecoration(
+                          labelText: 'İlçe (Opsiyonel)',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(value: null, child: Text('Tümü (İl Geneli)')),
+                          ...currentDistricts.map((d) => DropdownMenuItem(value: d, child: Text(d))),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            selectedDistrict = val;
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('İptal'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    viewModel.debugChangeMunicipality(
+                      selectedCity ?? "",
+                      selectedDistrict ?? "",
+                    );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Uygula'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }
 

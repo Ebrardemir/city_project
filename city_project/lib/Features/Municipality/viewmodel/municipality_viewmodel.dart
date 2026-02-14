@@ -49,6 +49,10 @@ class MunicipalityViewModel extends ChangeNotifier {
     'resolved': 0,
     'fake': 0,
   };
+
+  // Debug - Kullanılabilir Şehir/İlçe Listeleri
+  List<String> availableDebugCities = [];
+  Map<String, List<String>> _availableDebugDistrictsCache = {};
   
   /// ViewModel'i başlat - kullanıcı bilgilerini dinle
   Future<void> init() async {
@@ -135,8 +139,15 @@ class MunicipalityViewModel extends ChangeNotifier {
           ? [selectedDistrictFilter!] 
           : userDistricts;
       
+      // Eğer ilçe listesi boşsa ve şehir varsa, Büyükşehir/İl kullanıcısı gibi davranıp şehri gönder
+      String? queryCity;
+      if (queryDistricts.isEmpty && currentUser?.city != null) {
+        queryCity = currentUser!.city;
+      }
+
       final result = await _service.getReportsForMunicipalityPaginated(
         districts: queryDistricts,
+        city: queryCity,
         statusFilter: selectedStatusFilter,
         categoryFilter: selectedCategoryFilter,
         limit: 10,
@@ -170,8 +181,14 @@ class MunicipalityViewModel extends ChangeNotifier {
           ? [selectedDistrictFilter!] 
           : userDistricts;
           
+      String? queryCity;
+      if (queryDistricts.isEmpty && currentUser?.city != null) {
+        queryCity = currentUser!.city;
+      }
+
       final result = await _service.getReportsForMunicipalityPaginated(
         districts: queryDistricts,
+        city: queryCity,
         statusFilter: selectedStatusFilter,
         categoryFilter: selectedCategoryFilter,
         lastDocument: lastDocument,
@@ -275,5 +292,59 @@ class MunicipalityViewModel extends ChangeNotifier {
   Future<void> refresh() async {
     await loadReports();
     await loadStatistics();
+  }
+
+  /// DEBUG: Şehirleri yükle
+  Future<void> loadDebugCities() async {
+    if (availableDebugCities.isNotEmpty) return;
+    try {
+      availableDebugCities = await _service.getAvailableCities();
+      notifyListeners();
+    } catch (e) {
+      print('❌ DEBUG cities error: $e');
+    }
+  }
+
+  /// DEBUG: Bir şehir için ilçeleri yükle
+  Future<List<String>> getDebugDistricts(String city) async {
+    if (_availableDebugDistrictsCache.containsKey(city)) {
+      return _availableDebugDistrictsCache[city]!;
+    }
+    
+    try {
+      final list = await _service.getAvailableDistricts(city);
+      _availableDebugDistrictsCache[city] = list;
+      return list;
+    } catch (e) {
+      print('❌ DEBUG districts error: $e');
+      return [];
+    }
+  }
+
+  /// DEBUG: Test için belediye değiştirme
+  void debugChangeMunicipality(String city, String district) {
+    if (currentUser == null) return;
+    
+    // Geçici yeni user oluştur
+    currentUser = UserModel(
+      id: currentUser!.id,
+      fullName: currentUser!.fullName,
+
+      email: currentUser!.email,
+      role: currentUser!.role,
+      score: currentUser!.score,
+      city: city,
+      district: district,
+      districts: district.isNotEmpty ? [district] : [],
+      createdAt: currentUser!.createdAt,
+    );
+    
+    userDistricts = currentUser!.districts;
+    
+    // Raporları yeniden yükle
+    loadReports();
+    loadStatistics();
+    
+    notifyListeners();
   }
 }
