@@ -1,6 +1,7 @@
 import 'package:city_project/Features/Home/view/home_view.dart';
 import 'package:city_project/Features/Login/view/login_view.dart';
 import 'package:city_project/Features/Login/view/register_view.dart';
+import 'package:city_project/Features/Profile/view/profile_view.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'app_router_constants.dart';
@@ -87,8 +88,7 @@ class AppRouter {
               GoRoute(
                 name: AppRouterConstants.profileRouteName,
                 path: '/profile',
-                builder: (context, state) =>
-                    const Center(child: Text("PROFİL SAYFASI")),
+                builder: (context, state) => const ProfileView(),
               ),
             ],
           ),

@@ -14,5 +14,6 @@ class AccountEndpoints {
   final String home = 'Home';
 
   final String getProfile = 'Account/GetProfile';
+  
   final String updatePassword = 'Account/UpdatePassword';
 }
