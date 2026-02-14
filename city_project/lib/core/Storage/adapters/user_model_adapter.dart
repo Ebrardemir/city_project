@@ -9,12 +9,15 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
   UserModel read(BinaryReader reader) {
     // Yazma sırasıyla aynı sırada okumalısın
     return UserModel(
-      id: reader.read() as int,
+      id: reader.read().toString(),
       fullName: reader.read() as String,
       email: reader.read() as String,
       role: reader.read() as String,
       score: reader.read() as int,
-      cityId: reader.read() as int,
+      city: reader.read() as String?,
+      district: reader.read() as String?,
+      districts: List<String>.from(reader.read() as List? ?? []),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(reader.read() as int),
     );
   }
 
@@ -27,6 +30,9 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       ..write(obj.email)
       ..write(obj.role)
       ..write(obj.score)
-      ..write(obj.cityId);
+      ..write(obj.city)
+      ..write(obj.district)
+      ..write(obj.districts)
+      ..write(obj.createdAt.millisecondsSinceEpoch);
   }
 }

@@ -1,53 +1,48 @@
 import 'package:city_project/Features/Home/viewmodel/home_viewmodel.dart';
 import 'package:city_project/Features/Profile/viewmodel/profile_view_model.dart';
+import 'package:city_project/Features/Municipality/viewmodel/municipality_viewmodel.dart';
 import 'package:city_project/core/Theme/theme_provider.dart';
+import 'package:city_project/core/services/location_service.dart';
+import 'package:city_project/Features/Home/service/report_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'package:city_project/core/di/locator.dart';
-import 'package:city_project/core/storage/hive_manager.dart';
-import 'package:city_project/core/init/boot_manager.dart';
 import 'package:city_project/core/router/app_router.dart';
-import 'package:city_project/core/init/firebase_test_service.dart';
 import 'package:city_project/Features/Login/view_model/login_viewmodel.dart';
 import 'package:city_project/Features/Login/view_model/register_viewmodel.dart';
 
 void main() async {
-  // 1. Flutter motorunu hazırla
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Firebase'i başlat
+  // Firebase başlat
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  // Firebase test - Konsolda sonuçları görebilirsin
-  final testResults = await FirebaseTestService.testFirebaseConnection();
-  FirebaseTestService.printTestResults(testResults);
-
-  // 3. Veritabanını (Hive) başlat (AuthService için kritik)
-  await HiveManager.init();
-
-  // 4. Bağımlılık Havuzunu (GetIt) kur
-  setupLocator();
 
   runApp(
     MultiProvider(
       providers: [
-        // Uygulama açılışını yöneten ana sağlayıcı
-        ChangeNotifierProvider(create: (_) => BootManager()),
-
         // Tema yönetimi
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
 
-        // Login ViewModel - locator üzerinden çağırıyoruz
-        ChangeNotifierProvider(create: (_) => locator<LoginViewModel>()),
+        // Login ViewModel
+        ChangeNotifierProvider(create: (_) => LoginViewModel()),
 
         // Register ViewModel
-        ChangeNotifierProvider(create: (_) => locator<RegisterViewModel>()),
+        ChangeNotifierProvider(create: (_) => RegisterViewModel()),
 
-        ChangeNotifierProvider(create: (_) => locator<HomeViewModel>()),
+        // Home ViewModel
+        ChangeNotifierProvider(
+          create: (_) => HomeViewModel(
+            LocationService(),
+            ReportService(),
+          ),
+        ),
 
+        // Profile ViewModel
         ChangeNotifierProvider(create: (_) => ProfileViewModel()),
+        
+        // Municipality ViewModel
+        ChangeNotifierProvider(create: (_) => MunicipalityViewModel()),
       ],
       child: const MyApp(),
     ),

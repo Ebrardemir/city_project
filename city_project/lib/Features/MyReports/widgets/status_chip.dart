@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../model/report_model.dart';
+import '../../Home/model/report_model.dart';
 
 class StatusChip extends StatelessWidget {
   final ReportStatus status;

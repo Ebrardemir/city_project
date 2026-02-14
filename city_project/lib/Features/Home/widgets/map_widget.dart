@@ -65,6 +65,14 @@ class MapWidget extends StatelessWidget {
           markers: vm.markers,
           onMapCreated: (controller) {
             vm.mapController = controller;
+            // İlk yükleme - harita hazır olunca raporları getir
+            Future.delayed(const Duration(milliseconds: 500), () {
+              vm.loadReportsForVisibleRegion();
+            });
+          },
+          onCameraIdle: () {
+            // Harita hareketi durduğunda raporları güncelle
+            vm.onCameraIdle();
           },
           onTap: (latLng) {
             vm.clearSelectedReport();

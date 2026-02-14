@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../model/report_model.dart';
+import '../../Home/model/report_model.dart';
 import '../service/my_reports_service.dart';
 import '../viewmodel/my_reports_viewmodel.dart';
 import '../widgets/report_card.dart';

@@ -1,8 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:city_project/Features/Login/model/user_model.dart'; // Yolunu kontrol et
-import 'package:city_project/core/Storage/hive_manager.dart'; // Yolunu kontrol et
-import '../logger/logger.dart'; // Kendi logger yapına göre güncelle
+import 'package:city_project/Features/Login/model/user_model.dart';
+import 'package:city_project/core/Storage/hive_manager.dart';
 
 class AuthService {
   // Token anahtarları - Secure Storage için
@@ -46,8 +46,8 @@ class AuthService {
     // 2. Kullanıcı nesnesini (Adapter sayesinde) direkt Hive'a kaydet
     await box.put(HiveKeys.user, user);
 
-    log.i('[AuthService] Giriş verileri kaydedildi: ${user.fullName}');
-    log.d('[AuthService] Token: ${_mask(accessToken)}');
+    debugPrint('[AuthService] Giriş verileri kaydedildi: ${user.fullName}');
+    debugPrint('[AuthService] Token: ${_mask(accessToken)}');
   }
 
   /// Kayıtlı kullanıcı nesnesini döner
@@ -57,16 +57,15 @@ class AuthService {
     try {
       final user = box.get(HiveKeys.user);
       if (user is UserModel) {
-        log.d(
+        debugPrint(
           '[AuthService] Kullanıcı getirildi: ${user.fullName} (Puan: ${user.score})',
         );
         return user;
       }
       return null;
     } catch (e) {
-      log.e(
-        '[AuthService] Kullanıcı verisi parse edilirken hata oluştu',
-        error: e,
+      debugPrint(
+        '[AuthService] Kullanıcı verisi parse edilirken hata oluştu: $e',
       );
       return null;
     }
@@ -76,7 +75,7 @@ class AuthService {
   Future<String?> getAccessToken() async {
     await _ensureInit();
     final token = await _secureStorage.read(key: _kAccessTokenKey);
-    log.d('[AuthService] AccessToken okundu: ${_mask(token)}');
+    debugPrint('[AuthService] AccessToken okundu: ${_mask(token)}');
     return token;
   }
 
@@ -92,7 +91,7 @@ class AuthService {
     final box = Hive.box(HiveBoxes.auth);
     await box.clear();
     await _secureStorage.deleteAll();
-    log.w('[AuthService] Tüm oturum verileri temizlendi.');
+    debugPrint('[AuthService] Tüm oturum verileri temizlendi.');
   }
 
   /// Kullanıcının aktif bir oturumu olup olmadığını kontrol eder
@@ -110,7 +109,7 @@ class AuthService {
   }
 
   /// Mevcut kullanıcının ID'sine hızlı erişim
-  Future<int?> getCurrentUserId() async {
+  Future<String?> getCurrentUserId() async {
     final user = await getUser();
     return user?.id;
   }
@@ -119,7 +118,7 @@ class AuthService {
   Future<void> debugPrintStatus() async {
     final user = await getUser();
     final token = await getAccessToken();
-    log.i('''
+    debugPrint('''
 [AuthService DEBUG]
   Oturum Açık mı: ${user != null}
   Kullanıcı: ${user?.fullName}

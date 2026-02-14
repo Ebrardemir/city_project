@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../../MyReports/model/report_model.dart';
+import '../../Home/model/report_model.dart';
 import '../service/nearby_reports_service.dart';
 
 enum NearbyViewMode { list, map }
@@ -15,7 +15,7 @@ class NearbyReportsViewModel extends ChangeNotifier {
   NearbyViewMode mode = NearbyViewMode.list;
 
   ReportStatus? statusFilter; // null => tümü
-  int? categoryFilter; // null => tümü (categoryId)
+  ReportCategory? categoryFilter; // null => tümü
 
   Future<void> load() async {
     loading = true;
@@ -37,8 +37,8 @@ class NearbyReportsViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setCategoryFilter(int? id) {
-    categoryFilter = id;
+  void setCategoryFilter(ReportCategory? cat) {
+    categoryFilter = cat;
     _apply();
     notifyListeners();
   }
@@ -50,7 +50,7 @@ class NearbyReportsViewModel extends ChangeNotifier {
       list = list.where((e) => e.status == statusFilter).toList();
     }
     if (categoryFilter != null) {
-      list = list.where((e) => e.categoryId == categoryFilter).toList();
+      list = list.where((e) => e.category == categoryFilter).toList();
     }
 
     visible = list;
