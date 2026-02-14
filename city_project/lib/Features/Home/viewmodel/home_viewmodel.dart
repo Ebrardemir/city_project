@@ -17,7 +17,6 @@ class HomeViewModel extends ChangeNotifier {
   String? district;
 
   bool isLoading = false;
-  bool showConfirmSheet = false;
   String? errorMessage;
 
   GoogleMapController? mapController;
@@ -129,7 +128,7 @@ class HomeViewModel extends ChangeNotifier {
         // Kamera konuma git
         await Future.delayed(const Duration(milliseconds: 500));
         mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(selectedLatLng!, 16),
+          CameraUpdate.newLatLngZoom(selectedLatLng!, 19),
         );
         print('📷 HomeViewModel: Kamera konuma odaklandı');
 
@@ -146,14 +145,13 @@ class HomeViewModel extends ChangeNotifier {
             if (!country.contains('turkey') && !country.contains('türkiye') && !country.contains('turkiye')) {
               print('⚠️ HomeViewModel: Türkiye dışı konum tespit edildi: ${place.country}');
               print('💡 HomeViewModel: iOS Simulator kullanıyorsanız Debug → Location → Custom Location menüsünden Türkiye\'de bir konum seçin');
-              print('💡 HomeViewModel: veya gerçek cihazda test edin');
               
               // Varsayılan Türkiye konumunu kullan
               selectedLatLng = _defaultLocation;
               city = "İstanbul";
               district = "Taksim";
-              errorMessage = "Simülatör konumu tespit edildi (${place.country}). Lütfen konumunuzu manuel olarak seçin veya gerçek cihazda test edin.";
-              showConfirmSheet = true;
+              errorMessage = "Simülatör konumu tespit edildi (${place.country}). Varsayılan İstanbul konumu kullanılıyor.";
+              await loadReports();
               isLoading = false;
               notifyListeners();
               return;
@@ -169,43 +167,27 @@ class HomeViewModel extends ChangeNotifier {
           district = "${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}";
         }
         
-        // Onay dialogunu göster
-        showConfirmSheet = true;
+        // Raporları yükle
+        await loadReports();
+
       } else {
         print('⚠️ HomeViewModel: Konum alınamadı, varsayılan konum kullanılıyor');
         selectedLatLng = _defaultLocation;
         city = "İstanbul";
         district = "Taksim";
-        errorMessage = "Konum izni verilmedi veya GPS kapalı. Lütfen manuel olarak seçin.";
-        showConfirmSheet = true;
+        errorMessage = "Konum izni verilmedi veya GPS kapalı. Varsayılan konum kullanılıyor.";
+        await loadReports();
       }
     } catch (e) {
       print('❌ HomeViewModel: Hata: $e');
       selectedLatLng = _defaultLocation;
       city = "İstanbul";
       district = "Taksim";
-      errorMessage = "Konum alınamadı. Lütfen manuel olarak seçin.";
-      showConfirmSheet = true;
+      errorMessage = "Konum alınamadı. Varsayılan konum kullanılıyor.";
+      await loadReports();
     }
 
-    isLoading = false;
-    notifyListeners();
-  }
-
-  // Konumu onayla
-  void confirmLocation(bool isConfirmed) {
-    showConfirmSheet = false;
-    
-    if (isConfirmed) {
-      // Konum onaylandı, ihbarları yükle
-      loadReports();
-      errorMessage = null;
-    } else {
-      // Konum reddedildi, manuel seçime geç
-      errorMessage = "Manuel konum seçme ekranına yönlendiriliyorsunuz...";
-    }
-    
-    notifyListeners();
+    isLoading = false;notifyListeners();
   }
 
   // Manuel konum seçimi
@@ -229,7 +211,7 @@ class HomeViewModel extends ChangeNotifier {
     
     // Kamera konuma git
     mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(selectedLatLng!, 15),
+      CameraUpdate.newLatLngZoom(selectedLatLng!, 18),
     );
     
     // İhbarları yükle
