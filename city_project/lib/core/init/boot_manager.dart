@@ -32,7 +32,7 @@ class BootManager extends ChangeNotifier {
   }
 
   /// Kullanıcı çıkış yaptığında çalışır
-  void logout() async {
+  Future<void> logout() async {
     final authService = locator<AuthService>();
 
     // HATA ÇÖZÜMÜ: Eğer AuthService içinde metodun adı 'clearAll' ise

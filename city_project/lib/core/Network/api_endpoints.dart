@@ -12,6 +12,10 @@ class AccountEndpoints {
   final String login = 'Account/Login';
   final String register = 'Account/Register';
   final String home = 'Home';
+  final String myReports = 'Account/MyReports';
+  final String reportsDetail = 'ReportsDetail';
+  final String nearbyReports = 'Reports/NearbyReports';
+  final String createReport = 'Reports/CreateReport';
 
   final String getProfile = 'Account/GetProfile';
 
