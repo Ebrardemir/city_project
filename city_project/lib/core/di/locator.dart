@@ -60,7 +60,7 @@ void setupLocator() {
   // 4. VIEWMODEL'LER
   // registerFactory: Her sayfa açıldığında ViewModel'in yeni bir kopyasını oluşturur
   locator.registerFactory(
-    () => LoginViewModel(locator<LoginService>(), locator<AuthService>()),
+    () => LoginViewModel(),
   );
 
   // RegisterViewModel

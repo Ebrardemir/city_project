@@ -107,13 +107,26 @@ class _ProfileViewState extends State<ProfileView> {
                                       ); // şimdilik route yoksa sonra ekleriz
                                     },
                                     onLogoutTap: () async {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Çıkış yapılacak'),
-                                        ),
-                                      );
+                                      try {
+                                        await context.read<ProfileViewModel>().logout();
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Başarıyla çıkış yapıldı'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Çıkış yapılırken hata: $e'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
                                     },
                                   ),
                                 ],

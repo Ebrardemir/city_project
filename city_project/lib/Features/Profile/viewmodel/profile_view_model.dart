@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../model/profile_response.dart';
 import '../service/profile_service.dart';
 
@@ -20,5 +21,15 @@ class ProfileViewModel extends ChangeNotifier {
 
     isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      debugPrint('[ProfileViewModel] Kullanıcı çıkış yaptı');
+    } catch (e) {
+      debugPrint('[ProfileViewModel] Çıkış hatası: $e');
+      rethrow;
+    }
   }
 }

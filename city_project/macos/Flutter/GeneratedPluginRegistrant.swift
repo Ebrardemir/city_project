@@ -10,7 +10,6 @@ import file_selector_macos
 import firebase_auth
 import firebase_core
 import firebase_storage
-import file_selector_macos
 import flutter_secure_storage_darwin
 import geolocator_apple
 import google_sign_in_ios
