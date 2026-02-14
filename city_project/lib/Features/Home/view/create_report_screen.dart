@@ -8,7 +8,8 @@ import '../model/report_model.dart';
 import '../service/report_service.dart';
 import '../../../core/services/image_upload_service.dart';
 import '../../../core/services/location_service.dart';
-import '../../../core/di/locator.dart';
+import '../../../core/Services/clustering_service.dart';
+import '../../../core/Services/gamification_service.dart';
 
 class CreateReportScreen extends StatefulWidget {
   final LatLng? initialLocation;
@@ -29,9 +30,10 @@ class CreateReportScreen extends StatefulWidget {
 class _CreateReportScreenState extends State<CreateReportScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
-  final _reportService = locator<ReportService>();
+  final _reportService = ReportService();
   final _imageService = ImageUploadService();
-  final _locationService = locator<LocationService>();
+  final _locationService = LocationService();
+  final _clusteringService = ClusteringService();
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
@@ -40,6 +42,7 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
   LatLng? _selectedLocation;
   String? _city;
   String? _district;
+  String? _address;
   bool _isLoading = false;
 
   @override
@@ -95,7 +98,23 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
         setState(() {
           _selectedLocation = LatLng(position.latitude, position.longitude);
           _city = place?.administrativeArea ?? 'Bilinmeyen';
-          _district = place?.subAdministrativeArea ?? 'Bilinmeyen';
+          _district = place?.subAdministrativeArea ?? place?.locality ?? 'Bilinmeyen';
+          
+          // Detaylı adres oluştur
+          final addressParts = <String>[];
+          if (place?.street != null && place!.street!.isNotEmpty) {
+            addressParts.add(place.street!);
+          }
+          if (place?.subLocality != null && place!.subLocality!.isNotEmpty) {
+            addressParts.add(place.subLocality!);
+          }
+          if (place?.name != null && place!.name!.isNotEmpty && !addressParts.contains(place.name)) {
+            addressParts.add(place.name!);
+          }
+          
+          _address = addressParts.isNotEmpty 
+              ? addressParts.join(', ') 
+              : '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
         });
       }
     } catch (e) {
@@ -106,6 +125,59 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
       }
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _selectLocationFromMap() async {
+    final result = await Navigator.push<LatLng>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerScreen(
+          initialLocation: _selectedLocation ?? widget.initialLocation,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() => _isLoading = true);
+      
+      try {
+        final place = await _locationService.getAddressFromLatLng(
+          result.latitude,
+          result.longitude,
+        );
+
+        setState(() {
+          _selectedLocation = result;
+          _city = place?.administrativeArea ?? 'Bilinmeyen';
+          _district = place?.subAdministrativeArea ?? place?.locality ?? 'Bilinmeyen';
+          
+          // Detaylı adres oluştur
+          final addressParts = <String>[];
+          if (place?.street != null && place!.street!.isNotEmpty) {
+            addressParts.add(place.street!);
+          }
+          if (place?.subLocality != null && place!.subLocality!.isNotEmpty) {
+            addressParts.add(place.subLocality!);
+          }
+          if (place?.name != null && place!.name!.isNotEmpty && !addressParts.contains(place.name)) {
+            addressParts.add(place.name!);
+          }
+          
+          _address = addressParts.isNotEmpty 
+              ? addressParts.join(', ') 
+              : '${result.latitude.toStringAsFixed(6)}, ${result.longitude.toStringAsFixed(6)}';
+        });
+      } catch (e) {
+        setState(() {
+          _selectedLocation = result;
+          _city = 'Seçili Konum';
+          _district = '${result.latitude.toStringAsFixed(4)}, ${result.longitude.toStringAsFixed(4)}';
+          _address = 'Konum: ${result.latitude.toStringAsFixed(6)}, ${result.longitude.toStringAsFixed(6)}';
+        });
+      } finally {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -129,25 +201,86 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Kullanıcı bilgilerini al
       final currentUser = _auth.currentUser;
       if (currentUser == null) {
         throw Exception('Kullanıcı oturumu bulunamadı');
       }
 
-      // Firestore'dan kullanıcı bilgilerini çek (varsa)
+      // ✨ CLUSTERING KONTROLÜ: Yakında benzer rapor var mı?
+      print('🔍 Clustering: Yakın rapor kontrolü başlatılıyor...');
+      final nearbyReportId = await _clusteringService.checkNearbyReport(
+        latitude: _selectedLocation!.latitude,
+        longitude: _selectedLocation!.longitude,
+        category: _selectedCategory.value,
+        radiusMeters: 20.0, // 20 metre yarıçap
+      );
+
+      // Eğer yakında rapor varsa, yeni rapor oluşturma - destek ekle
+      if (nearbyReportId != null) {
+        print('✅ Clustering: Yakın rapor bulundu, destek ekleniyor...');
+        
+        final success = await _clusteringService.addSupport(
+          nearbyReportId,
+          currentUser.uid,
+        );
+        
+        if (success && mounted) {
+          Navigator.of(context).pop(true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '🎯 Bu sorun zaten bildirilmiş!',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('Desteğiniz eklendi ve bildirim sayısı artırıldı.'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Rapor ID: $nearbyReportId',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return; // Yeni rapor oluşturma, fonksiyondan çık
+      }
+
+      print('✅ Clustering: Yakın rapor bulunamadı, yeni rapor oluşturuluyor...');
+
+      // Firestore'dan kullanıcı bilgi lerini çek (varsa)
       String fullName = 'Anonim';
       try {
+        print('🔍 Firestore\'dan kullanıcı bilgisi çekiliyor: ${currentUser.uid}');
         final userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+        
         if (userDoc.exists) {
           final userData = userDoc.data()!;
           fullName = userData['fullName'] ?? userData['name'] ?? 'Anonim';
+          print('✅ Firestore kullanıcı bulundu: $fullName');
         } else {
-          // Firestore'da yoksa Firebase Auth'dan displayName kullan
+          print('⚠️ Firestore\'da kullanıcı bulunamadı, Auth kullanılıyor');
           fullName = currentUser.displayName ?? currentUser.email?.split('@').first ?? 'Kullanıcı';
+          
+          print('💾 Firestore\'a kullanıcı kaydediliyor...');
+          await _firestore.collection('users').doc(currentUser.uid).set({
+            'fullName': fullName,
+            'email': currentUser.email,
+            'role': 'citizen',
+            'score': 0,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          print('✅ Kullanıcı Firestore\'a kaydedildi');
         }
       } catch (e) {
-        print('⚠️ Firestore kullanıcı bilgisi alınamadı, Auth kullanılıyor: $e');
+        print('❌ Firestore hatası: $e');
         fullName = currentUser.displayName ?? currentUser.email?.split('@').first ?? 'Kullanıcı';
       }
 
@@ -170,6 +303,7 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
         userFullName: fullName,
         city: _city ?? 'Bilinmeyen',
         district: _district ?? 'Bilinmeyen',
+        address: _address,
         category: _selectedCategory,
         description: _descriptionController.text.trim(),
         latitude: _selectedLocation!.latitude,
@@ -178,11 +312,22 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
       );
 
       if (report != null) {
+        // 🆕 GAMIFICATION: Rapor oluşturma puanı ver
+        try {
+          await GamificationService().onReportCreated(
+            currentUser.uid,
+            report.id,
+          );
+          print('🎮 Gamification: +10 puan eklendi (rapor oluşturma)');
+        } catch (e) {
+          print('⚠️ Gamification hatası: $e');
+        }
+        
         if (mounted) {
-          Navigator.of(context).pop(true); // Başarılı ile geri dön
+          Navigator.of(context).pop(true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('İhbar başarıyla oluşturuldu!'),
+              content: Text('✅ İhbar başarıyla oluşturuldu! +10 puan kazandınız!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -399,7 +544,18 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
                     ],
                   ),
                   if (_selectedLocation != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
+                    if (_address != null && _address!.isNotEmpty) ...[
+                      Text(
+                        _address!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                     Text(
                       '${_selectedLocation!.latitude.toStringAsFixed(6)}, ${_selectedLocation!.longitude.toStringAsFixed(6)}',
                       style: TextStyle(
@@ -409,18 +565,33 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _getCurrentLocation,
-                      icon: const Icon(Icons.my_location),
-                      label: const Text('Şu Anki Konumu Kullan'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _getCurrentLocation,
+                          icon: const Icon(Icons.my_location, size: 18),
+                          label: const Text('Konumum'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _selectLocationFromMap,
+                          icon: const Icon(Icons.map, size: 18),
+                          label: const Text('Haritadan Seç'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.blue,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -460,6 +631,158 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// Haritadan Konum Seçme Ekranı
+class LocationPickerScreen extends StatefulWidget {
+  final LatLng? initialLocation;
+
+  const LocationPickerScreen({super.key, this.initialLocation});
+
+  @override
+  State<LocationPickerScreen> createState() => _LocationPickerScreenState();
+}
+
+class _LocationPickerScreenState extends State<LocationPickerScreen> {
+  late LatLng _selectedLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedLocation = widget.initialLocation ?? const LatLng(41.0082, 28.9784);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Konum Seç'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.pop(context, _selectedLocation),
+            icon: const Icon(Icons.check),
+            tooltip: 'Onayla',
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: _selectedLocation,
+              zoom: 16,
+            ),
+            mapType: MapType.terrain,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+            onTap: (latLng) {
+              setState(() {
+                _selectedLocation = latLng;
+              });
+            },
+            markers: {
+              Marker(
+                markerId: const MarkerId('selected'),
+                position: _selectedLocation,
+                draggable: true,
+                onDragEnd: (latLng) {
+                  setState(() {
+                    _selectedLocation = latLng;
+                  });
+                },
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+              ),
+            },
+          ),
+          
+          // Bilgi Kartı
+          Positioned(
+            bottom: 24,
+            left: 16,
+            right: 16,
+            child: Card(
+              elevation: 8,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Haritaya dokunun veya pini sürükleyin',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.location_on, color: Colors.red[700], size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${_selectedLocation.latitude.toStringAsFixed(6)}, ${_selectedLocation.longitude.toStringAsFixed(6)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.pop(context, _selectedLocation),
+                        icon: const Icon(Icons.check_circle),
+                        label: const Text(
+                          'Konumu Onayla',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

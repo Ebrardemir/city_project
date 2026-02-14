@@ -1,4 +1,4 @@
-import '../../MyReports/model/report_model.dart';
+import '../../Home/model/report_model.dart';
 
 class NearbyReportsService {
   Future<List<ReportModel>> fetchNearby() async {
@@ -9,36 +9,39 @@ class NearbyReportsService {
 
     return [
       ReportModel(
-        id: 101,
-        userId: 2,
-        categoryId: 1,
-        categoryName: 'Yol / Çukur',
+        id: '101',
+        userId: 'user_456',
+        userFullName: 'Ahmet Yılmaz',
+        city: 'İstanbul',
+        district: 'Beşiktaş',
+        category: ReportCategory.road,
         description: 'Sokak başında çukur var.',
-        imageBeforeUrl: '${img}near1/400/400',
-        imageAfterUrl: '',
+        latitude: 41.0082,
+        longitude: 28.9784,
+        imageUrlBefore: '${img}near1/400/400',
         status: ReportStatus.pending,
         supportCount: 5,
+        supportedUserIds: [],
         createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-        approvedAt: null,
-        resolvedAt: null,
-        lat: 41.0082,
-        lng: 28.9784,
       ),
       ReportModel(
-        id: 102,
-        userId: 7,
-        categoryId: 3,
-        categoryName: 'Çöp / Temizlik',
+        id: '102',
+        userId: 'user_789',
+        userFullName: 'Mehmet Demir',
+        city: 'İstanbul',
+        district: 'Beşiktaş',
+        category: ReportCategory.garbage,
         description: 'Konteyner taşmış, çevresi kirli.',
-        imageBeforeUrl: '${img}near2/400/400',
-        imageAfterUrl: '${img}near2_after/400/400',
+        latitude: 41.01,
+        longitude: 28.97,
+        imageUrlBefore: '${img}near2/400/400',
+        imageUrlAfter: '${img}near2_after/400/400',
         status: ReportStatus.resolved,
         supportCount: 18,
+        supportedUserIds: [],
         createdAt: DateTime.now().subtract(const Duration(days: 2)),
-        approvedAt: DateTime.now().subtract(const Duration(days: 2, hours: 10)),
+        updatedAt: DateTime.now().subtract(const Duration(days: 2, hours: 10)),
         resolvedAt: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-        lat: 41.01,
-        lng: 28.97,
       ),
     ];
   }

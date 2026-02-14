@@ -86,14 +86,30 @@ class RegisterViewModel extends ChangeNotifier {
 
       await user.updateDisplayName(nameController.text.trim());
 
-      // ✅ Firestore’a kullanıcı profilini yaz
+      // ✅ Email bazlı rol belirleme
+      final email = emailController.text.trim().toLowerCase();
+      String role = 'citizen';
+      List<String> districts = [];
+      
+      // Eğer email @belediye.bel.tr ile bitiyorsa belediye yetkilisi
+      if (email.endsWith('@belediye.bel.tr') || email.endsWith('@municipality.gov.tr')) {
+        role = 'municipality';
+        // Seçilen ilçeyi sorumlu ilçeler listesine ekle
+        if (selectedDistrict != null) {
+          districts = [selectedDistrict!];
+        }
+        debugPrint('[Register] Belediye yetkilisi kaydı: $email');
+      }
+
+      // ✅ Firestore'a kullanıcı profilini yaz
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'fullName': nameController.text.trim(),
         'email': user.email,
         'city': selectedCity,
-        'role': 'citizen',
+        'role': role,
         'score': 0,
         'district': selectedDistrict,
+        'districts': districts, // Belediye için sorumlu ilçeler
         'createdAt': FieldValue.serverTimestamp(),
       });
 

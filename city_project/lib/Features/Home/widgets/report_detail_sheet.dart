@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../model/report_model.dart';
 
 class ReportDetailSheet extends StatelessWidget {
@@ -72,12 +73,17 @@ class ReportDetailSheet extends StatelessWidget {
           if (report.imageUrlBefore != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                report.imageUrlBefore!,
+              child: CachedNetworkImage(
+                imageUrl: report.imageUrlBefore!,
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                placeholder: (context, url) => Container(
+                  height: 200,
+                  color: Colors.grey[200],
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) => Container(
                   height: 200,
                   color: Colors.grey[200],
                   child: const Icon(Icons.image_not_supported, size: 50),
@@ -160,7 +166,9 @@ class ReportDetailSheet extends StatelessWidget {
                 const Icon(Icons.check_circle, color: Colors.green),
                 const SizedBox(width: 8),
                 Text(
-                  'Çözüldü • ${_formatDate(report.resolvedAt!)}',
+                  report.resolvedAt != null 
+                      ? 'Çözüldü • ${_formatDate(report.resolvedAt!)}'
+                      : 'Çözüldü',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -172,11 +180,32 @@ class ReportDetailSheet extends StatelessWidget {
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                report.imageUrlAfter!,
+              child: CachedNetworkImage(
+                imageUrl: report.imageUrlAfter!,
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  height: 200,
+                  color: Colors.grey[200],
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) {
+                  return Container(
+                    height: 200,
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                          SizedBox(height: 8),
+                          Text('Görsel yüklenemedi'),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],

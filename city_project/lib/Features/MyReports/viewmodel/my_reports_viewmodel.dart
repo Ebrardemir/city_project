@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../model/report_model.dart';
+import '../../Home/model/report_model.dart';
 import '../service/my_reports_service.dart';
 
 class MyReportsViewModel extends ChangeNotifier {

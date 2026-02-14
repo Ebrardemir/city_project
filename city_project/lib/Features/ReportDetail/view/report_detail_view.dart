@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:city_project/Features/MyReports/model/report_model.dart';
+import 'package:city_project/Features/Home/model/report_model.dart';
 import 'package:city_project/Features/MyReports/widgets/status_chip.dart';
 import '../widgets/report_media_header.dart';
 import '../widgets/report_timeline.dart';
@@ -11,7 +11,7 @@ class ReportDetailView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final hasAfter = (report.imageAfterUrl ?? '').isNotEmpty;
+    final hasAfter = (report.imageUrlAfter ?? '').isNotEmpty;
     final isResolved = report.status == ReportStatus.resolved;
 
     return Scaffold(
@@ -51,7 +51,7 @@ class ReportDetailView extends StatelessWidget {
 
           // Başlık + kategori
           Text(
-            report.categoryName,
+            report.category.label,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
@@ -142,7 +142,7 @@ class ReportDetailView extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Konum: ${report.lat.toStringAsFixed(5)}, ${report.lng.toStringAsFixed(5)}',
+                          'Konum: ${report.latitude.toStringAsFixed(5)}, ${report.longitude.toStringAsFixed(5)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(color: cs.onSurfaceVariant),

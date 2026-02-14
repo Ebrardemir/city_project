@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/di/locator.dart';
 import '../../../core/services/location_service.dart';
 import '../viewmodel/create_report_viewmodel.dart';
 import '../widgets/location_picker_card.dart';
@@ -14,7 +13,7 @@ class CreateReportView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => CreateReportViewModel(locator<LocationService>()),
+      create: (_) => CreateReportViewModel(LocationService()),
       child: const _CreateReportBody(),
     );
   }

@@ -28,6 +28,9 @@ class HomeViewModel extends ChangeNotifier {
   
   // Seçili İhbar
   ReportModel? selectedReport;
+  
+  // Harita kamera kontrolü
+  bool _isLoadingReports = false;
 
   // Harita özelleştirme
   MapType mapType = MapType.terrain;
@@ -234,7 +237,7 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // İhbarları yükle
+  // İhbarları yükle (Firebase'den)
   Future<void> loadReports() async {
     if (selectedLatLng == null) return;
 
@@ -242,15 +245,54 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Backend'den veri gelene kadar mock data kullan
-      allReports = await _reportService.getMockReports(selectedLatLng!);
+      print('🔄 HomeViewModel: Firebase\'den raporlar yükleniyor...');
+      // Firebase'den yakındaki raporları çek (10km yarıçap)
+      allReports = await _reportService.getNearbyReports(
+        latitude: selectedLatLng!.latitude,
+        longitude: selectedLatLng!.longitude,
+        radiusKm: 10.0,
+      );
+      print('✅ HomeViewModel: ${allReports.length} rapor yüklendi');
       applyFilters();
     } catch (e) {
+      print('❌ HomeViewModel: Raporlar yüklenirken hata: $e');
       errorMessage = "İhbarlar yüklenirken hata: $e";
+      allReports = [];
+      filteredReports = [];
     }
 
     isLoading = false;
     notifyListeners();
+  }
+
+  // Haritanın görünür alanındaki raporları yükle
+  Future<void> loadReportsForVisibleRegion() async {
+    if (mapController == null || _isLoadingReports) return;
+
+    try {
+      _isLoadingReports = true;
+      
+      // Haritanın görünür alanını al
+      final bounds = await mapController!.getVisibleRegion();
+      
+      print('🗺️ HomeViewModel: Görünür alan raporları yükleniyor...');
+      
+      // Bounds içindeki raporları getir
+      allReports = await _reportService.getReportsInBounds(bounds: bounds);
+      
+      print('✅ HomeViewModel: ${allReports.length} rapor görünür alanda');
+      applyFilters();
+      notifyListeners();
+    } catch (e) {
+      print('❌ HomeViewModel: Görünür alan raporları yüklenirken hata: $e');
+    } finally {
+      _isLoadingReports = false;
+    }
+  }
+
+  // Harita kamerası hareket ettiğinde çağrılır
+  Future<void> onCameraIdle() async {
+    await loadReportsForVisibleRegion();
   }
 
   // Filtreleri uygula

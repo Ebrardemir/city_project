@@ -5,6 +5,53 @@ import '../model/report_model.dart';
 class ReportService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Haritanın görünür alanındaki ihbarları getir
+  Future<List<ReportModel>> getReportsInBounds({
+    required LatLngBounds bounds,
+  }) async {
+    try {
+      print('🗺️ ReportService: Harita bounds raporları yükleniyor...');
+      
+      // Bounds içindeki min/max koordinatları al
+      final southwest = bounds.southwest;
+      final northeast = bounds.northeast;
+      
+      // Firestore'dan tüm raporları çek (orderBy kaldırıldı - index gerekmez)
+      final snapshot = await _firestore
+          .collection('reports')
+          .where('status', whereIn: ['pending', 'approved', 'resolved'])
+          .limit(200)
+          .get();
+
+      final reports = snapshot.docs
+          .map((doc) {
+            try {
+              final data = doc.data();
+              data['id'] = doc.id;
+              return ReportModel.fromJson(data);
+            } catch (e) {
+              print('⚠️ Rapor parse hatası (${doc.id}): $e');
+              return null;
+            }
+          })
+          .whereType<ReportModel>()
+          .where((report) {
+            // Bounds içinde mi kontrol et
+            return report.latitude >= southwest.latitude &&
+                   report.latitude <= northeast.latitude &&
+                   report.longitude >= southwest.longitude &&
+                   report.longitude <= northeast.longitude;
+          })
+          .toList();
+
+      print('✅ ReportService: ${reports.length} rapor harita bounds içinde bulundu');
+      return reports;
+    } catch (e) {
+      print('❌ ReportService: Harita bounds raporları yüklenirken hata: $e');
+      return [];
+    }
+  }
+
   // Firestore'dan yakındaki ihbarları getir
   Future<List<ReportModel>> getNearbyReports({
     required double latitude,
@@ -12,21 +59,25 @@ class ReportService {
     double radiusKm = 5.0,
   }) async {
     try {
-      // Basit bir yaklaşım: Tüm raporları çek ve mesafeye göre filtrele
-      // Daha optimize için GeoFlutterFire kullanılabilir
+      // orderBy kaldırıldı - Firestore index gerekmez
       final snapshot = await _firestore
           .collection('reports')
           .where('status', whereIn: ['pending', 'approved', 'resolved'])
-          .orderBy('createdAt', descending: true)
           .limit(100)
           .get();
 
       final reports = snapshot.docs
           .map((doc) {
-            final data = doc.data();
-            data['id'] = doc.id;
-            return ReportModel.fromJson(data);
+            try {
+              final data = doc.data();
+              data['id'] = doc.id;
+              return ReportModel.fromJson(data);
+            } catch (e) {
+              print('⚠️ Rapor parse hatası (${doc.id}): $e');
+              return null;
+            }
           })
+          .whereType<ReportModel>()
           .where((report) {
             // Basit mesafe hesaplama (yaklaşık)
             final latDiff = (report.latitude - latitude).abs();

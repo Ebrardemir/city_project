@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../MyReports/model/report_model.dart';
+import '../../Home/model/report_model.dart';
 import '../../MyReports/widgets/report_card.dart';
 import '../service/nearby_reports_service.dart';
 import '../viewmodel/nearby_reports_viewmodel.dart';
@@ -123,20 +123,21 @@ class _StatusChips extends StatelessWidget {
 }
 
 class _CategoryChips extends StatelessWidget {
-  final int? selectedCategoryId;
-  final void Function(int? id) onChanged;
+  final ReportCategory? selectedCategoryId;
+  final void Function(ReportCategory? cat) onChanged;
 
   const _CategoryChips({required this.selectedCategoryId, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
-    // Mock categories (backend gelince API’den gelir)
-    final categories = const [
+    // Use ReportCategory enum values
+    final categories = [
       (null, 'Tümü'),
-      (1, 'Yol'),
-      (2, 'Park'),
-      (3, 'Temizlik'),
-      (4, 'Su'),
+      (ReportCategory.road, ReportCategory.road.label),
+      (ReportCategory.park, ReportCategory.park.label),
+      (ReportCategory.garbage, ReportCategory.garbage.label),
+      (ReportCategory.water, ReportCategory.water.label),
+      (ReportCategory.lighting, ReportCategory.lighting.label),
     ];
 
     return SingleChildScrollView(
