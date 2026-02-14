@@ -11,6 +11,7 @@ import 'package:city_project/core/init/boot_manager.dart';
 import 'package:city_project/core/router/app_router.dart';
 import 'package:city_project/core/init/firebase_test_service.dart';
 import 'package:city_project/Features/Login/view_model/login_viewmodel.dart';
+import 'package:city_project/Features/Login/view_model/register_viewmodel.dart';
 
 void main() async {
   // 1. Flutter motorunu hazırla
@@ -40,6 +41,9 @@ void main() async {
 
         // Login ViewModel - locator üzerinden çağırıyoruz
         ChangeNotifierProvider(create: (_) => locator<LoginViewModel>()),
+
+        // Register ViewModel
+        ChangeNotifierProvider(create: (_) => locator<RegisterViewModel>()),
 
         ChangeNotifierProvider(create: (_) => locator<HomeViewModel>()),
 
