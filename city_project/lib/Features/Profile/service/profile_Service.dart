@@ -1,5 +1,6 @@
+import 'package:city_project/Features/Login/model/user_model.dart';
+
 import '../model/profile_response.dart';
-import '../../Login/model/user_model.dart'; // pathini projene göre ayarla
 
 class ProfileService {
   Future<ProfileResponse> getProfile() async {
