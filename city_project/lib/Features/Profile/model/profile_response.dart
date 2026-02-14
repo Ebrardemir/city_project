@@ -1,5 +1,3 @@
-
-
 import 'package:city_project/Features/Login/model/user_model.dart';
 
 class ProfileResponse {

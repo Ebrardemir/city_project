@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../Init/boot_manager.dart';
 import '../Router/pending_route.dart';
 
-
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 

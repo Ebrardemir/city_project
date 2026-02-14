@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:city_project/Features/CreateReport/view/create_report_view.dart';
 import 'package:city_project/Features/Home/view/home_view.dart';
 import 'package:city_project/Features/Login/view/login_view.dart';
@@ -8,12 +9,47 @@ import 'package:city_project/Features/Profile/view/profile_view.dart';
 import 'package:city_project/Features/ReportDetail/view/report_detail_view.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'app_router_constants.dart';
 import 'package:city_project/Features/MyReports/view/my_reports_view.dart';
 
+/// Firebase Auth durumunu dinleyen basit bir notifier
+class AuthNotifier extends ChangeNotifier {
+  AuthNotifier() {
+    _sub = FirebaseAuth.instance.authStateChanges().listen((_) {
+      notifyListeners();
+    });
+  }
+
+  late final StreamSubscription<User?> _sub;
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
+  }
+}
+
 class AppRouter {
+  static final _authNotifier = AuthNotifier();
+
   static final router = GoRouter(
-    initialLocation: '/login', // Uygulama giriş ekranıyla başlar
+    initialLocation: '/login',
+    refreshListenable: _authNotifier,
+    redirect: (context, state) {
+      final isLoggedIn = FirebaseAuth.instance.currentUser != null;
+      final goingToLogin =
+          state.matchedLocation == '/login' ||
+          state.matchedLocation == '/register';
+
+      if (!isLoggedIn && !goingToLogin) {
+        return '/login';
+      }
+      if (isLoggedIn && goingToLogin) {
+        return '/home';
+      }
+      return null;
+    },
     routes: [
       // --- 1. NAVBAR DIŞINDA KALANLAR (Giriş Ekranı vb.) ---
       GoRoute(

@@ -26,8 +26,7 @@ class ProfileStats extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               "$value",
-              style: const TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             Text(title, style: const TextStyle(fontSize: 12)),
           ],

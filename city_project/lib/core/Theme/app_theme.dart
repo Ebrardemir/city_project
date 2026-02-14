@@ -26,8 +26,6 @@ class AppTheme {
         surfaceTintColor: scheme.surface,
       ),
 
-      
-
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         type: BottomNavigationBarType.fixed,
         backgroundColor: scheme.surface,
