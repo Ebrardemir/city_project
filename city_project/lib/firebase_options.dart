@@ -50,7 +50,8 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REDACTED_FIREBASE_API_KEY',
+    // Derleme zamanında verilecek Android Firebase API Key
+    apiKey: String.fromEnvironment('FIREBASE_ANDROID_API_KEY'),
     appId: '1:948832370692:android:f271f8ce155c8e7ca0f551',
     messagingSenderId: '948832370692',
     projectId: 'citypulse-e2c83',
@@ -58,7 +59,8 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCTlhcsjebzdnufg2qGJBjCy3to9af4EUQ',
+    // Derleme zamanında verilecek iOS Firebase API Key
+    apiKey: String.fromEnvironment('FIREBASE_IOS_API_KEY'),
     appId: '1:948832370692:ios:ec8ceebbea6244baa0f551',
     messagingSenderId: '948832370692',
     projectId: 'citypulse-e2c83',
