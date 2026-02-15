@@ -20,7 +20,9 @@ void main() async {
   // Firebase başlat
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  const String? googleCloudApiKey = 'REDACTED_GOOGLE_CLOUD_API_KEY';
+  // API anahtarlarını koda gömmek yerine derleme zamanında ver.
+  // Çalıştırırken: --dart-define=GOOGLE_CLOUD_API_KEY=... kullan.
+  const String? googleCloudApiKey = String.fromEnvironment('GOOGLE_CLOUD_API_KEY');
 
   runApp(
     MultiProvider(
