@@ -1,9 +1,16 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
+import '../../../core/services/ai_vision_service.dart';
 import '../model/report_model.dart';
 
 class ReportService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AIVisionService? _aiVisionService;
+
+  ReportService({AIVisionService? aiVisionService}) 
+      : _aiVisionService = aiVisionService;
 
   // Haritanın görünür alanındaki ihbarları getir
   Future<List<ReportModel>> getReportsInBounds({
@@ -113,6 +120,63 @@ class ReportService {
     try {
       final docRef = _firestore.collection('reports').doc();
       
+      // Başlangıç durumu
+      var reportStatus = ReportStatus.pending;
+      bool? isFakeDetected;
+      FakeReportReason? fakeReason;
+      double? fakeConfidence;
+      List<String>? aiDetectedLabels;
+      DateTime? fakeDetectionTime;
+
+      // Eğer AI Vision Service varsa ve resim URL'i varsa, analiz et
+      if (_aiVisionService != null && imageUrlBefore != null) {
+        print('🔍 ReportService: AI Fake Detection başlatılıyor...');
+        try {
+          // Resmi indir
+          final imageUri = Uri.parse(imageUrlBefore);
+          final response = await http.get(imageUri).timeout(
+            const Duration(seconds: 10),
+          );
+
+          if (response.statusCode == 200) {
+            final tempDir = Directory.systemTemp;
+            final tempFile = File('${tempDir.path}/temp_report_${DateTime.now().millisecondsSinceEpoch}.jpg');
+            await tempFile.writeAsBytes(response.bodyBytes);
+
+            // AI ile analiz et
+            final analysisResult = await _aiVisionService.analyzeImage(tempFile);
+            
+            isFakeDetected = analysisResult.isFake;
+            fakeReason = FakeReportReason.values.firstWhere(
+              (e) => e.name == analysisResult.reason.name,
+              orElse: () => FakeReportReason.unknown,
+            );
+            fakeConfidence = analysisResult.confidence;
+            aiDetectedLabels = analysisResult.detectedLabels;
+            fakeDetectionTime = DateTime.now();
+
+            // Fake tespit edilirse durumu güncelle
+            if (analysisResult.isFake) {
+              reportStatus = ReportStatus.fake;
+              print('🚩 ReportService: Fake ihbar tespit edildi - Neden: ${analysisResult.reason.label}');
+            } else {
+              print('✅ ReportService: İmaj legitimate olarak onaylandı');
+            }
+
+            // Temp file'ı sil
+            try {
+              await tempFile.delete();
+            } catch (e) {
+              print('⚠️ ReportService: Temp file silinirken hata: $e');
+            }
+          } else {
+            print('⚠️ ReportService: Resim indirilemedi - Status: ${response.statusCode}');
+          }
+        } catch (e) {
+          print('⚠️ ReportService: AI Analiz hatası (rapor yine de oluşturulacak): $e');
+        }
+      }
+      
       final report = ReportModel(
         id: docRef.id,
         userId: userId,
@@ -127,10 +191,16 @@ class ReportService {
         latitude: latitude,
         longitude: longitude,
         imageUrlBefore: imageUrlBefore,
-        status: ReportStatus.pending,
+        status: reportStatus,
         supportCount: 1,
         supportedUserIds: [userId],
         createdAt: DateTime.now(),
+        // AI Detection fields
+        isFakeDetected: isFakeDetected,
+        fakeReason: fakeReason,
+        fakeConfidence: fakeConfidence,
+        aiDetectedLabels: aiDetectedLabels,
+        fakeDetectionTime: fakeDetectionTime,
       );
 
       await docRef.set(report.toJson());
@@ -219,6 +289,67 @@ class ReportService {
       return true;
     } catch (e) {
       print('❌ ReportService: Durum güncellenirken hata: $e');
+      return false;
+    }
+  }
+
+  // Admin için Fake/Flagged İhbarları getir
+  Future<List<ReportModel>> getFakeFlaggedReports() async {
+    try {
+      print('🔍 ReportService: Fake/Flagged ihbarlar yükleniyor...');
+
+      final snapshot = await _firestore
+          .collection('reports')
+          .where('status', whereIn: ['fake', 'flagged'])
+          .orderBy('fakeDetectionTime', descending: true)
+          .limit(100)
+          .get();
+
+      final reports = snapshot.docs
+          .map((doc) {
+            try {
+              final data = doc.data();
+              data['id'] = doc.id;
+              return ReportModel.fromJson(data);
+            } catch (e) {
+              print('⚠️ Rapor parse hatası (${doc.id}): $e');
+              return null;
+            }
+          })
+          .whereType<ReportModel>()
+          .toList();
+
+      print('✅ ReportService: ${reports.length} fake/flagged ihbar bulundu');
+      return reports;
+    } catch (e) {
+      print('❌ ReportService: Fake/Flagged ihbarlar yüklenirken hata: $e');
+      return [];
+    }
+  }
+
+  // Fake olarak işaretlenen ihbara admin aksiyonu uygula
+  Future<bool> adminReviewFakeReport({
+    required String reportId,
+    required bool isFakeConfirmed,
+    String? adminNotes,
+  }) async {
+    try {
+      final updates = <String, dynamic>{
+        'status': isFakeConfirmed ? ReportStatus.fake.value : ReportStatus.pending.value,
+        'updatedAt': DateTime.now(),
+      };
+
+      if (adminNotes != null) {
+        updates['adminReviewNotes'] = adminNotes;
+      }
+
+      await _firestore.collection('reports').doc(reportId).update(updates);
+      
+      final action = isFakeConfirmed ? 'fake olarak doğrulandı' : 'pending olarak geri alındı';
+      print('✅ ReportService: İhbar admin tarafından $action: $reportId');
+      return true;
+    } catch (e) {
+      print('❌ ReportService: Admin review hatası: $e');
       return false;
     }
   }

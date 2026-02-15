@@ -12,6 +12,7 @@ class StatusChip extends StatelessWidget {
       ReportStatus.approved => ('İşleme alındı', Colors.blue),
       ReportStatus.resolved => ('Çözüldü', Colors.green),
       ReportStatus.fake => ('Fake', Colors.red),
+      ReportStatus.flagged => ('İşaretlendi', Colors.yellow),
     };
 
     return Container(

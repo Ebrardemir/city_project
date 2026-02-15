@@ -407,6 +407,8 @@ class _AdminReportsViewState extends State<AdminReportsView> {
         return Colors.green;
       case ReportStatus.fake:
         return Colors.red;
+      case ReportStatus.flagged:
+        return Colors.yellow;
     }
   }
   

@@ -356,6 +356,9 @@ class HomeViewModel extends ChangeNotifier {
         case ReportStatus.fake:
           icon = fakeIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
           break;
+        case ReportStatus.flagged:
+          icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow);
+          break;
       }
 
       return Marker(
