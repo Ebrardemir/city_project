@@ -17,11 +17,26 @@ enum ReportStatus {
   pending('Bekliyor', 'pending'),
   approved('Onaylandı', 'approved'),
   resolved('Çözüldü', 'resolved'),
-  fake('Sahte', 'fake');
+  fake('Sahte', 'fake'),
+  flagged('İşaretlendi', 'flagged');
 
   final String label;
   final String value;
   const ReportStatus(this.label, this.value);
+}
+
+enum FakeReportReason {
+  selfie('Selfie', 'selfie'),
+  darkness('Karanlık', 'darkness'),
+  blur('Bulanık', 'blur'),
+  indoor('İç Mekan', 'indoor'),
+  screenCapture('Ekran Görüntüsü', 'screenCapture'),
+  drawing('Çizim/Grafik', 'drawing'),
+  unknown('Bilinmeyen', 'unknown');
+
+  final String label;
+  final String value;
+  const FakeReportReason(this.label, this.value);
 }
 
 class ReportModel {
@@ -45,6 +60,13 @@ class ReportModel {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final DateTime? resolvedAt;
+  
+  // AI-destekli fake detection fields
+  final bool? isFakeDetected;
+  final FakeReportReason? fakeReason;
+  final double? fakeConfidence; // 0.0 - 1.0
+  final List<String>? aiDetectedLabels;
+  final DateTime? fakeDetectionTime;
 
   ReportModel({
     required this.id,
@@ -67,6 +89,11 @@ class ReportModel {
     required this.createdAt,
     this.updatedAt,
     this.resolvedAt,
+    this.isFakeDetected,
+    this.fakeReason,
+    this.fakeConfidence,
+    this.aiDetectedLabels,
+    this.fakeDetectionTime,
   });
 
   LatLng get position => LatLng(latitude, longitude);
@@ -113,6 +140,23 @@ class ReportModel {
               ? DateTime.parse(json['resolvedAt'])
               : (json['resolvedAt'] as dynamic).toDate())
           : null,
+      // AI Detection fields
+      isFakeDetected: json['isFakeDetected'],
+      fakeReason: json['fakeReason'] != null
+          ? FakeReportReason.values.firstWhere(
+              (e) => e.value == json['fakeReason'],
+              orElse: () => FakeReportReason.unknown,
+            )
+          : null,
+      fakeConfidence: json['fakeConfidence']?.toDouble(),
+      aiDetectedLabels: json['aiDetectedLabels'] != null
+          ? List<String>.from(json['aiDetectedLabels'])
+          : null,
+      fakeDetectionTime: json['fakeDetectionTime'] != null
+          ? (json['fakeDetectionTime'] is String
+              ? DateTime.parse(json['fakeDetectionTime'])
+              : (json['fakeDetectionTime'] as dynamic).toDate())
+          : null,
     );
   }
 
@@ -138,6 +182,12 @@ class ReportModel {
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'resolvedAt': resolvedAt,
+      // AI Detection fields
+      'isFakeDetected': isFakeDetected,
+      'fakeReason': fakeReason?.value,
+      'fakeConfidence': fakeConfidence,
+      'aiDetectedLabels': aiDetectedLabels,
+      'fakeDetectionTime': fakeDetectionTime,
     };
   }
 }

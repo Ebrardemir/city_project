@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../Home/model/report_model.dart';
-import '../../../core/services/location_service.dart';
 
 class NearbyReportsService {
   final _firestore = FirebaseFirestore.instance;

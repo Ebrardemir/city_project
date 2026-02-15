@@ -3,6 +3,7 @@ import 'package:city_project/Features/Profile/viewmodel/profile_view_model.dart'
 import 'package:city_project/Features/Municipality/viewmodel/municipality_viewmodel.dart';
 import 'package:city_project/core/Theme/theme_provider.dart';
 import 'package:city_project/core/services/location_service.dart';
+import 'package:city_project/core/services/ai_vision_service.dart';
 import 'package:city_project/Features/Home/service/report_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,12 +12,15 @@ import 'firebase_options.dart';
 import 'package:city_project/core/router/app_router.dart';
 import 'package:city_project/Features/Login/view_model/login_viewmodel.dart';
 import 'package:city_project/Features/Login/view_model/register_viewmodel.dart';
+import 'package:city_project/core/services/ai_vision_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Firebase başlat
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  const String? googleCloudApiKey = 'AIzaSyDmSlh8wu2h6FLOWR1tiCkrYxqgwbvAbnE';
 
   runApp(
     MultiProvider(
@@ -30,12 +34,20 @@ void main() async {
         // Register ViewModel
         ChangeNotifierProvider(create: (_) => RegisterViewModel()),
 
+        if (googleCloudApiKey != null)
+          Provider<AIVisionService>(
+            create: (_) => AIVisionService(apiKey: googleCloudApiKey),
+          ),
+
         // Home ViewModel
         ChangeNotifierProvider(
-          create: (_) => HomeViewModel(
-            LocationService(),
-            ReportService(),
-          ),
+          create: (context) {
+            final aiVisionService = context.read<AIVisionService?>();
+            return HomeViewModel(
+              LocationService(),
+              ReportService(aiVisionService: aiVisionService),
+            );
+          },
         ),
 
         // Profile ViewModel

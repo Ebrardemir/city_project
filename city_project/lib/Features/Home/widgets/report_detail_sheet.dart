@@ -299,6 +299,9 @@ class _StatusChip extends StatelessWidget {
       case ReportStatus.fake:
         color = Colors.red;
         break;
+      case ReportStatus.flagged:
+        color = Colors.yellow;
+        break;
     }
 
     return Container(
