@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-
-import '../../../core/constants/tr_locations.dart';
-
 import '../../Home/model/report_model.dart';
 import '../../MyReports/widgets/report_card.dart';
 import '../service/nearby_reports_service.dart';
