@@ -488,6 +488,14 @@ class _MunicipalityDashboardViewState extends State<MunicipalityDashboardView> {
           labelStyle: const TextStyle(color: Colors.white, fontSize: 12),
           avatar: const Icon(Icons.block, color: Colors.white, size: 16),
         );
+        
+      case ReportStatus.flagged:
+        return Chip(
+          label: const Text('İşaretlendi'),
+          backgroundColor: Colors.yellow,
+          labelStyle: const TextStyle(color: Colors.black, fontSize: 12),
+          avatar: const Icon(Icons.flag, color: Colors.black, size: 16),
+        );
     }
   }
   
@@ -651,6 +659,8 @@ class _MunicipalityDashboardViewState extends State<MunicipalityDashboardView> {
         return Colors.green;
       case ReportStatus.fake:
         return Colors.red;
+      case ReportStatus.flagged:
+        return Colors.yellow;
     }
   }
   

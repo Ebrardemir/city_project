@@ -104,6 +104,79 @@ class _ReportDetailContentState extends State<_ReportDetailContent> {
 
                 const SizedBox(height: 12),
 
+                // AI Fake Detection skor (eğer var ise)
+                if (widget.report.isFakeDetected == true)
+                  Card(
+                    color: Colors.red[50],
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.warning, color: Colors.red[700], size: 22),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Text(
+                                  'AI Analiz Uyarısı',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.red[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Güvenilirlik: ${((widget.report.fakeConfidence ?? 0) * 100).toStringAsFixed(0)}%',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Sebep: ${widget.report.fakeReason?.label ?? 'Bilinmiyor'}',
+                                  style: TextStyle(fontSize: 13, color: Colors.red[900]),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (widget.report.aiDetectedLabels != null && widget.report.aiDetectedLabels!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Wrap(
+                                spacing: 6,
+                                children: widget.report.aiDetectedLabels!
+                                    .take(5)
+                                    .map(
+                                      (label) => Chip(
+                                        label: Text(label, style: const TextStyle(fontSize: 11)),
+                                        backgroundColor: Colors.orange[100],
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 if (isResolved && hasAfter)
                   Card(
                     child: Padding(

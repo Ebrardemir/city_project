@@ -147,6 +147,8 @@ class FilterBottomSheet extends StatelessWidget {
         return Colors.green;
       case ReportStatus.fake:
         return Colors.red;
+      case ReportStatus.flagged:
+        return Colors.yellow;
     }
   }
 }

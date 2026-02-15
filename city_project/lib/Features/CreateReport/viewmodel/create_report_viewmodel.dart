@@ -1,18 +1,30 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/ai_vision_service.dart';
 import '../model/create_report_draft.dart';
 
 class CreateReportViewModel extends ChangeNotifier {
   final LocationService _locationService;
-  CreateReportViewModel(this._locationService);
+  final AIVisionService? _aiVisionService;
+  
+  CreateReportViewModel(
+    this._locationService, {
+    AIVisionService? aiVisionService,
+  }) : _aiVisionService = aiVisionService;
 
   final draft = CreateReportDraft();
 
   bool loadingLocation = false;
   bool submitting = false;
+  bool analyzingImage = false;
 
   String? errorText;
+  
+  // AI Detection Results
+  FakeDetectionResult? lastAnalysisResult;
+  bool? imageAnalysisWarning;
 
   // Mock kategori listesi (backend gelince API)
   final categories = const [
@@ -36,6 +48,9 @@ class CreateReportViewModel extends ChangeNotifier {
 
   void setImagePath(String path) {
     draft.localImagePath = path;
+    // Yeni resim seçildiğinde önceki analiz sonuçlarını temizle
+    lastAnalysisResult = null;
+    imageAnalysisWarning = null;
     notifyListeners();
   }
 
@@ -58,6 +73,44 @@ class CreateReportViewModel extends ChangeNotifier {
 
     loadingLocation = false;
     notifyListeners();
+  }
+
+  /// AI Vision ile resim analiz et
+  /// Fake İhbar tespiti yapar
+  Future<void> analyzeImage() async {
+    if (draft.localImagePath == null || _aiVisionService == null) {
+      return;
+    }
+
+    analyzingImage = true;
+    imageAnalysisWarning = null;
+    lastAnalysisResult = null;
+    notifyListeners();
+
+    try {
+      final imageFile = File(draft.localImagePath!);
+      final result = await _aiVisionService.analyzeImage(imageFile);
+      
+      lastAnalysisResult = result;
+      imageAnalysisWarning = result.isFake;
+
+      if (result.isFake) {
+        errorText = '⚠️ Fake İhbar Uyarısı: ${result.reason.label}\n'
+            'Kontrol: ${(result.confidence * 100).toStringAsFixed(0)}% kesinlikle uyumsuz gözüküyor.\n'
+            'Emin misin? (Devam edebilirsin, Admin inceleyecek)';
+      } else {
+        errorText = null;
+      }
+
+      print(
+          '✅ CreateReportViewModel: Resim analizi tamamlandı - Fake: ${result.isFake}, Neden: ${result.reason.label}');
+    } catch (e) {
+      print('❌ CreateReportViewModel: Resim analizi hatası: $e');
+      errorText = 'Resim analiz edilirken hata oluştu. Devam edebilirsin.';
+    } finally {
+      analyzingImage = false;
+      notifyListeners();
+    }
   }
 
   String? firstValidationError() {

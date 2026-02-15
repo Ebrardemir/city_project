@@ -14,8 +14,9 @@ class AdminReportsView extends StatefulWidget {
   State<AdminReportsView> createState() => _AdminReportsViewState();
 }
 
-class _AdminReportsViewState extends State<AdminReportsView> {
+class _AdminReportsViewState extends State<AdminReportsView> with TickerProviderStateMixin {
   final MunicipalityService _service = MunicipalityService();
+  late TabController _tabController;
   
   // Filters
   ReportStatus? _statusFilter;
@@ -24,6 +25,18 @@ class _AdminReportsViewState extends State<AdminReportsView> {
   // Selection for bulk actions
   final Set<String> _selectedReportIds = {};
   bool _isSelectionMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -33,35 +46,37 @@ class _AdminReportsViewState extends State<AdminReportsView> {
         foregroundColor: Colors.white,
         title: _isSelectionMode
             ? Text('${_selectedReportIds.length} Rapor Seçildi')
-            : const Text('📋 Tüm Raporlar'),
+            : const Text('📋 Admin Panel'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Tüm Raporlar'),
+            Tab(text: 'Fake İhbarlar 🚨'),
+          ],
+        ),
         actions: [
           if (_isSelectionMode) ...[
-            // Bulk approve button
             IconButton(
               icon: const Icon(Icons.check_circle),
               onPressed: _selectedReportIds.isEmpty ? null : _bulkApprove,
               tooltip: 'Seçilenleri Onayla',
             ),
-            // Bulk fake button
             IconButton(
               icon: const Icon(Icons.report_problem),
               onPressed: _selectedReportIds.isEmpty ? null : _bulkMarkAsFake,
               tooltip: 'Seçilenleri Fake İşaretle',
             ),
-            // Cancel selection
             IconButton(
               icon: const Icon(Icons.close),
               onPressed: _cancelSelection,
               tooltip: 'İptal',
             ),
           ] else ...[
-            // Filter button
             IconButton(
               icon: const Icon(Icons.filter_list),
               onPressed: _showFilterSheet,
               tooltip: 'Filtrele',
             ),
-            // Selection mode toggle
             IconButton(
               icon: const Icon(Icons.checklist),
               onPressed: () {
@@ -74,78 +89,138 @@ class _AdminReportsViewState extends State<AdminReportsView> {
           ],
         ],
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          // Filter chips
-          _buildFilterChips(),
-          
-          // Reports list
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _buildQuery(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Hata: ${snapshot.error}'),
-                      ],
-                    ),
-                  );
-                }
-                
-                final docs = snapshot.data?.docs ?? [];
-                
-                if (docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Rapor bulunamadı',
-                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                
-                final reports = docs.map((doc) {
-                  try {
-                    final data = doc.data() as Map<String, dynamic>;
-                    data['id'] = doc.id;
-                    return ReportModel.fromJson(data);
-                  } catch (e) {
-                    print('⚠️ Rapor parse hatası (${doc.id}): $e');
-                    return null;
-                  }
-                }).whereType<ReportModel>().toList();
-                
-                return ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: reports.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final report = reports[index];
-                    final isSelected = _selectedReportIds.contains(report.id);
-                    
-                    return _buildReportCard(report, isSelected);
-                  },
-                );
-              },
-            ),
-          ),
+          // Tab 1: Tüm Raporlar
+          _buildAllReportsTab(),
+          // Tab 2: Fake İhbarlar
+          _buildFakeReportsTab(),
         ],
       ),
+    );
+  }
+
+  Widget _buildAllReportsTab() {
+    return Column(
+      children: [
+        _buildFilterChips(),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _buildQuery(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text('Hata: ${snapshot.error}'),
+                    ],
+                  ),
+                );
+              }
+              
+              final docs = snapshot.data?.docs ?? [];
+              
+              if (docs.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Rapor bulunamadı',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              
+              final reports = docs.map((doc) {
+                try {
+                  final data = doc.data() as Map<String, dynamic>;
+                  data['id'] = doc.id;
+                  return ReportModel.fromJson(data);
+                } catch (e) {
+                  print('⚠️ Rapor parse hatası (${doc.id}): $e');
+                  return null;
+                }
+              }).whereType<ReportModel>().toList();
+              
+              return ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: reports.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final report = reports[index];
+                  final isSelected = _selectedReportIds.contains(report.id);
+                  return _buildReportCard(report, isSelected);
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFakeReportsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('reports')
+          .where('isFakeDetected', isEqualTo: true)
+          .orderBy('fakeDetectionTime', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Hata: ${snapshot.error}'),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+
+        if (docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.verified, size: 64, color: Colors.green[300]),
+                const SizedBox(height: 16),
+                const Text('Şüpheli rapor yok! ✅'),
+              ],
+            ),
+          );
+        }
+
+        final reports = docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          return ReportModel.fromJson(data);
+        }).toList();
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(12),
+          itemCount: reports.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final report = reports[index];
+            return _buildFakeReportCard(report);
+          },
+        );
+      },
     );
   }
   
@@ -407,6 +482,8 @@ class _AdminReportsViewState extends State<AdminReportsView> {
         return Colors.green;
       case ReportStatus.fake:
         return Colors.red;
+      case ReportStatus.flagged:
+        return Colors.yellow;
     }
   }
   
@@ -750,4 +827,189 @@ class _AdminReportsViewState extends State<AdminReportsView> {
       );
     }
   }
+
+  /// Fake report card with approval/rejection buttons
+  Widget _buildFakeReportCard(ReportModel report) {
+    final confidence = (report.fakeConfidence ?? 0) * 100;
+    final reason = report.fakeReason?.label ?? 'Bilinmiyor';
+    
+    return Card(
+      elevation: 2,
+      color: Colors.red[50],
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Başlık + Skor
+            Row(
+              children: [
+                Icon(Icons.warning, color: Colors.red[700], size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        report.description ?? 'İhbar',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(
+                        '${report.category?.label} • ${report.address}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // AI Güvenilirlik Skoru
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.psychology, size: 20, color: Colors.red[700]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'AI Güvenilirlik: ${confidence.toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.red[700],
+                          ),
+                        ),
+                        Text(
+                          'Sebep: $reason',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Tespit edilen labels
+            if (report.aiDetectedLabels != null && report.aiDetectedLabels!.isNotEmpty)
+              Wrap(
+                spacing: 6,
+                children: report.aiDetectedLabels!
+                    .take(5)
+                    .map(
+                      (label) => Chip(
+                        label: Text(
+                          label,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        backgroundColor: Colors.orange[100],
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    )
+                    .toList(),
+              ),
+            
+            const SizedBox(height: 12),
+            
+            // Onay/Red Butonları
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _approveFakeReport(report),
+                    icon: const Icon(Icons.check_circle, size: 18),
+                    label: const Text('Onayla'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[700],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _rejectFakeReport(report),
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text('Red Et'),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.red[700]!),
+                      foregroundColor: Colors.red[700],
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Admin onaylar fake raporu
+  Future<void> _approveFakeReport(ReportModel report) async {
+    try {
+      await _service.markAsFake(report.id, 'admin', reason: 'Admin onayladı');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✅ Fake rapor onaylandı'),
+            backgroundColor: Colors.red[700],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  /// Admin fake raporu reddeder (normal rapor haline getirir)
+  Future<void> _rejectFakeReport(ReportModel report) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('reports')
+          .doc(report.id)
+          .update({
+            'isFakeDetected': false,
+            'fakeReason': null,
+            'fakeConfidence': null,
+            'status': 'pending',
+          });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Rapor normal duruma getirildi'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 }
+
