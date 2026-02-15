@@ -24,119 +24,289 @@ class _ProfileViewState extends State<ProfileView> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<ProfileViewModel>();
-    final size = MediaQuery.of(context).size;
+    // final theme = Theme.of(context);
+
+    if (vm.isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (vm.profile == null) {
+       return const Scaffold(
+        body: Center(child: Text("Profil yüklenemedi")),
+      );
+    }
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // Gradient Background (Login ile aynı)
-          Container(
-            height: size.height,
-            width: size.width,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+      appBar: AppBar(
+        title: const Text('Profilim'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              // Ayarlar sayfası
+            },
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Column(
+          children: [
+            // Header
+            ProfileHeader(user: vm.profile!.user),
+            const SizedBox(height: 24),
+            
+            // 🎮 Gamification Card
+            _buildGamificationCard(vm.profile!.user.score),
+            const SizedBox(height: 24),
+            
+            // Stats
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: ProfileStats(
+                  reports: vm.profile!.reportsCount,
+                  supported: vm.profile!.supportedCount,
+                  resolved: vm.profile!.resolvedCount,
+                ),
               ),
             ),
-          ),
-
-          SafeArea(
-            child: vm.isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  )
-                : vm.profile == null
-                ? const Center(
-                    child: Text(
-                      "Profil yüklenemedi",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  )
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 10),
-
-                        // Başlık
-                        const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            "Profil",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+            const SizedBox(height: 24),
+            
+            // Menu
+            Card(
+              child: ProfileMenu(
+                onMyReportsTap: () {
+                  context.push('/my-reports');
+                },
+                onCreateReportTap: () {
+                  context.push('/create-report');
+                },
+                onLogoutTap: () async {
+                  try {
+                    await context.read<ProfileViewModel>().logout();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Başarıyla çıkış yapıldı'),
+                          backgroundColor: Colors.green,
                         ),
-
-                        const SizedBox(height: 20),
-
-                        // Glass Card
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              child: Column(
-                                children: [
-                                  ProfileHeader(user: vm.profile!.user),
-                                  const SizedBox(height: 20),
-                                  ProfileStats(
-                                    reports: vm.profile!.reportsCount,
-                                    supported: vm.profile!.supportedCount,
-                                    resolved: vm.profile!.resolvedCount,
-                                  ),
-                                  const SizedBox(height: 20),
-                                  const Divider(),
-                                  ProfileMenu(
-                                    onMyReportsTap: () {
-                                      context.push('/my-reports');
-                                    },
-                                    onCreateReportTap: () {
-                                      context.push(
-                                        '/create-report',
-                                      ); // şimdilik route yoksa sonra ekleriz
-                                    },
-                                    onLogoutTap: () async {
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Çıkış yapılırken hata: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+                                  // 🔧 DEBUG: Rol Değiştirme Butonu
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
                                       try {
-                                        await context.read<ProfileViewModel>().logout();
-                                        if (context.mounted) {
+                                        final newRole = await context.read<ProfileViewModel>().changeRole();
+                                        if (context.mounted && newRole != null) {
+                                          // Role göre yönlendirme
+                                          String targetRoute;
+                                          if (newRole == 'municipality') {
+                                            targetRoute = '/municipality-dashboard';
+                                          } else if (newRole == 'admin') {
+                                            targetRoute = '/admin-dashboard';
+                                          } else {
+                                            targetRoute = '/home';
+                                          }
+                                          
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Başarıyla çıkış yapıldı'),
+                                            SnackBar(
+                                              content: Text('🔄 Rol değiştirildi: $newRole'),
                                               backgroundColor: Colors.green,
+                                              duration: const Duration(seconds: 2),
                                             ),
                                           );
+                                          
+                                          // Yeni sayfaya yönlendir
+                                          await Future.delayed(const Duration(milliseconds: 500));
+                                          if (context.mounted) {
+                                            context.go(targetRoute);
+                                          }
                                         }
                                       } catch (e) {
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: Text('Çıkış yapılırken hata: $e'),
+                                              content: Text('Rol değiştirilemedi: $e'),
                                               backgroundColor: Colors.red,
                                             ),
                                           );
                                         }
                                       }
                                     },
+                                    icon: const Icon(Icons.swap_horiz),
+                                    label: const Text('DEBUG: Rol Değiştir'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.grey[800],
+                                      foregroundColor: Colors.white,
+                                    ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Gamification puan kartı
+  Widget _buildGamificationCard(int score) {
+    // Rozet hesaplama
+    String badge;
+    IconData icon;
+    Color color;
+    int nextBadge;
+    
+    if (score < 100) {
+      badge = '🌱 Yeni Başlayan';
+      icon = Icons.star_border;
+      color = Colors.grey;
+      nextBadge = 100 - score;
+    } else if (score < 500) {
+      badge = '🥉 Bronz';
+      icon = Icons.star_half;
+      color = Colors.brown;
+      nextBadge = 500 - score;
+    } else if (score < 1000) {
+      badge = '🥈 Gümüş';
+      icon = Icons.star;
+      color = Colors.grey.shade300;
+      nextBadge = 1000 - score;
+    } else if (score < 5000) {
+      badge = '🥇 Altın';
+      icon = Icons.star;
+      color = Colors.amber;
+      nextBadge = 5000 - score;
+    } else {
+      badge = '💎 Elmas';
+      icon = Icons.diamond;
+      color = Colors.blue;
+      nextBadge = 0;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.purple.shade400, Colors.deepPurple.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Toplam Puan',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
                     ),
                   ),
+                  Text(
+                    '$score',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.emoji_events,
+                  color: Colors.amber,
+                  size: 40,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Rozet Göstergesi
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      badge,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (nextBadge > 0)
+                      Text(
+                        'Sonraki rozete $nextBadge puan kaldı',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Liderlik Tablosu Butonu
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                context.push('/leaderboard');
+              },
+              icon: const Icon(Icons.leaderboard, size: 18),
+              label: const Text('Liderlik Tablosunu Gör'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
           ),
         ],
       ),

@@ -51,5 +51,13 @@
 	<string>Bu uygulama size en yakın belediye hizmetlerini göstermek için konumunuza ihtiyaç duyar.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Bu uygulama size en yakın belediye hizmetlerini göstermek için konumunuza ihtiyaç duyar.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>İhbar fotoğrafı çekmek için kamera iznine ihtiyacımız var.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>İhbar için galeriden fotoğraf seçmek istiyorsanız bu izin gereklidir.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Fotoğrafları kaydetmek için galeri izni gereklidir.</string>
+	<key>GOOGLE_MAPS_API_KEY</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
 </dict>
 </plist>

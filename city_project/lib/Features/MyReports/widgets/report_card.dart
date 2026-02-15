@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../model/report_model.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../Home/model/report_model.dart';
 import 'status_chip.dart';
 
 class ReportCard extends StatelessWidget {
@@ -23,12 +24,20 @@ class ReportCard extends StatelessWidget {
               // Thumbnail
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  report.imageBeforeUrl,
+                child: CachedNetworkImage(
+                  imageUrl: report.imageUrlBefore ?? '',
                   width: 72,
                   height: 72,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) {
+                  placeholder: (context, url) => Container(
+                    width: 72,
+                    height: 72,
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) {
                     // Network yoksa asset göster, asset yoksa en son gri kutu
                     return Image.asset(
                       'assets/images/copp.jpg',
@@ -61,7 +70,7 @@ class ReportCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            report.categoryName,
+                            report.category.label,
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
@@ -77,6 +86,32 @@ class ReportCard extends StatelessWidget {
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerRight,
                             child: StatusChip(status: report.status),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    // Konum
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: cs.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '${report.district}, ${report.city}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: cs.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],

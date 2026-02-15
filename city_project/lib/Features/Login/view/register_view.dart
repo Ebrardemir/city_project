@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:city_project/Features/Login/view_model/register_viewmodel.dart';
 import 'package:city_project/core/Router/app_router_constants.dart';
+import 'package:city_project/core/constants/tr_locations.dart'; // ✅ BURASI
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -9,24 +10,20 @@ import '../widgets/auth_text_field.dart';
 class RegisterView extends StatelessWidget {
   const RegisterView({super.key});
 
-  static final List<String> cities = [
-    "İstanbul",
-    "Ankara",
-    "İzmir",
-    "Bursa",
-    "Antalya",
-  ];
-
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<RegisterViewModel>();
     final size = MediaQuery.of(context).size;
 
+    // ✅ İl seçimine göre ilçeleri çek
+    final districts = TrLocations.districtsOf(viewModel.selectedCity);
+    // Eğer sende districtsOf yoksa, şunu kullan:
+    // final districts = TrLocations.districtsByCity[viewModel.selectedCity] ?? const [];
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
-          // 🔵 Gradient Background (Login ile aynı tasarım dili)
           Container(
             height: size.height,
             width: size.width,
@@ -38,7 +35,6 @@ class RegisterView extends StatelessWidget {
               ),
             ),
           ),
-
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -46,7 +42,6 @@ class RegisterView extends StatelessWidget {
                 children: [
                   const SizedBox(height: 40),
 
-                  // 🏙️ Header
                   const Icon(
                     Icons.person_add_alt_1_rounded,
                     size: 70,
@@ -70,7 +65,6 @@ class RegisterView extends StatelessWidget {
 
                   const SizedBox(height: 40),
 
-                  // 🧊 Glass Form Card
                   ClipRRect(
                     borderRadius: BorderRadius.circular(24),
                     child: BackdropFilter(
@@ -90,7 +84,6 @@ class RegisterView extends StatelessWidget {
                         ),
                         child: Column(
                           children: [
-                            // Hata mesajı göster
                             if (viewModel.errorMessage != null)
                               Container(
                                 padding: const EdgeInsets.all(12),
@@ -98,11 +91,17 @@ class RegisterView extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   color: Colors.red.shade50,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.red.shade200),
+                                  border: Border.all(
+                                    color: Colors.red.shade200,
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                                    Icon(
+                                      Icons.error_outline,
+                                      color: Colors.red.shade700,
+                                      size: 20,
+                                    ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
@@ -117,7 +116,6 @@ class RegisterView extends StatelessWidget {
                                 ),
                               ),
 
-                            // 👤 Ad Soyad
                             AuthTextField(
                               controller: viewModel.nameController,
                               label: "Ad Soyad",
@@ -126,7 +124,6 @@ class RegisterView extends StatelessWidget {
                             ),
                             const SizedBox(height: 18),
 
-                            // 📧 Email
                             AuthTextField(
                               controller: viewModel.emailController,
                               label: "E-posta",
@@ -135,7 +132,6 @@ class RegisterView extends StatelessWidget {
                             ),
                             const SizedBox(height: 18),
 
-                            // 🔒 Şifre
                             AuthTextField(
                               controller: viewModel.passwordController,
                               label: "Şifre",
@@ -145,7 +141,7 @@ class RegisterView extends StatelessWidget {
                             ),
                             const SizedBox(height: 18),
 
-                            // 🗺️ Şehir Dropdown (Modern Stil)
+                            // ✅ İl (Şehir)
                             DropdownButtonFormField<String>(
                               value: viewModel.selectedCity,
                               decoration: InputDecoration(
@@ -169,20 +165,64 @@ class RegisterView extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              items: cities.map((city) {
-                                return DropdownMenuItem(
-                                  value: city,
-                                  child: Text(city),
-                                );
-                              }).toList(),
+                              items: TrLocations.cities
+                                  .map(
+                                    (city) => DropdownMenuItem(
+                                      value: city,
+                                      child: Text(city),
+                                    ),
+                                  )
+                                  .toList(),
                               onChanged: (value) {
                                 viewModel.setSelectedCity(value);
                               },
                             ),
 
+                            const SizedBox(height: 18),
+
+                            // ✅ İlçe
+                            DropdownButtonFormField<String>(
+                              value: viewModel.selectedDistrict,
+                              decoration: InputDecoration(
+                                labelText: "Yaşadığınız İlçe",
+                                prefixIcon: const Icon(
+                                  Icons.location_on_outlined,
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey.shade100,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                  horizontal: 16,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF1565C0),
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              items: districts
+                                  .map(
+                                    (d) => DropdownMenuItem(
+                                      value: d,
+                                      child: Text(d),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: viewModel.selectedCity == null
+                                  ? null
+                                  : (value) {
+                                      viewModel.setSelectedDistrict(value);
+                                    },
+                            ),
+
                             const SizedBox(height: 30),
 
-                            // 🚀 Premium Register Button
                             SizedBox(
                               width: double.infinity,
                               height: 55,
@@ -197,22 +237,29 @@ class RegisterView extends StatelessWidget {
                                 onPressed: viewModel.isLoading
                                     ? null
                                     : () async {
-                                        final success = await viewModel.register();
+                                        final success = await viewModel
+                                            .register();
 
                                         if (success && context.mounted) {
-                                          // Başarılı kayıt sonrası bilgi mesajı göster
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             const SnackBar(
-                                              content: Text('Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...'),
+                                              content: Text(
+                                                'Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...',
+                                              ),
                                               backgroundColor: Colors.green,
                                               duration: Duration(seconds: 2),
                                             ),
                                           );
 
-                                          // Login sayfasına yönlendir
-                                          await Future.delayed(const Duration(seconds: 1));
+                                          await Future.delayed(
+                                            const Duration(seconds: 1),
+                                          );
                                           if (context.mounted) {
-                                            context.goNamed(AppRouterConstants.loginRouteName);
+                                            context.goNamed(
+                                              AppRouterConstants.loginRouteName,
+                                            );
                                           }
                                         }
                                       },
@@ -235,7 +282,6 @@ class RegisterView extends StatelessWidget {
 
                             const SizedBox(height: 16),
 
-                            // Login sayfasına dön
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -245,7 +291,9 @@ class RegisterView extends StatelessWidget {
                                 ),
                                 TextButton(
                                   onPressed: () {
-                                    context.goNamed(AppRouterConstants.loginRouteName);
+                                    context.goNamed(
+                                      AppRouterConstants.loginRouteName,
+                                    );
                                   },
                                   child: const Text(
                                     "Giriş Yap",

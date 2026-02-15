@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../MyReports/model/report_model.dart';
+import '../../Home/model/report_model.dart';
 
 class ReportTimeline extends StatelessWidget {
   final ReportModel report;
@@ -51,7 +51,7 @@ class ReportTimeline extends StatelessWidget {
       children: [
         item(icon: Icons.add_circle_outline, title: 'Oluşturuldu', time: report.createdAt, active: true),
         const SizedBox(height: 12),
-        item(icon: Icons.verified_outlined, title: 'Onaylandı', time: report.approvedAt, active: report.approvedAt != null),
+        item(icon: Icons.verified_outlined, title: 'Onaylandı', time: report.updatedAt, active: report.updatedAt != null),
         const SizedBox(height: 12),
         item(icon: Icons.check_circle_outline, title: 'Çözüldü', time: report.resolvedAt, active: report.resolvedAt != null),
       ],

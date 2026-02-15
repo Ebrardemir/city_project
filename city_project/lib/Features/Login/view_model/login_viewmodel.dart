@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginViewModel extends ChangeNotifier {
   LoginViewModel();
-
+  
   // Controller'lar veriyi arayüzden çekmek için kullanılır
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -60,6 +61,26 @@ class LoginViewModel extends ChangeNotifier {
         );
         await FirebaseAuth.instance.signInWithCredential(credential);
       }
+
+      // 🔄 Firestore Kontrolü
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+          debugPrint('[Login] Yeni Google kullanıcısı, Firestore kaydı oluşturuluyor...');
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+            'fullName': user.displayName ?? 'Google Kullanıcısı',
+            'email': user.email,
+            'role': 'citizen',
+            'score': 0,
+            'districts': [],
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          debugPrint('[Login] Firestore kaydı tamamlandı.');
+        }
+      }
+
       debugPrint('[Login] Google ile giriş başarılı');
     } on FirebaseAuthException catch (e) {
       debugPrint('[Login] FirebaseAuthException: ${e.code}');

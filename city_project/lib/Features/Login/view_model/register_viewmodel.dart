@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterViewModel extends ChangeNotifier {
-  // Controller'lar
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -10,16 +10,20 @@ class RegisterViewModel extends ChangeNotifier {
   String? selectedCity;
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  String? selectedDistrict;
 
   String? errorMessage;
-
-  /// Şehir seçimi güncelle
   void setSelectedCity(String? city) {
     selectedCity = city;
+    selectedDistrict = null; // ✅ il değişince ilçe reset
     notifyListeners();
   }
 
-  /// Form validasyonu
+  void setSelectedDistrict(String? district) {
+    selectedDistrict = district;
+    notifyListeners();
+  }
+
   bool _validateForm() {
     errorMessage = null;
 
@@ -52,40 +56,66 @@ class RegisterViewModel extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+    if (selectedDistrict == null) {
+      errorMessage = 'Lütfen ilçe seçin';
+      notifyListeners();
+      return false;
+    }
 
     return true;
   }
 
-  /// Firebase ile kayıt işlemi
   Future<bool> register() async {
-    if (!_validateForm()) {
-      return false;
-    }
+    if (!_validateForm()) return false;
 
     _isLoading = true;
     errorMessage = null;
     notifyListeners();
 
     try {
-      // Firebase Authentication ile kullanıcı oluştur
-      final userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
 
-      // Kullanıcı profil bilgilerini güncelle
-      await userCredential.user?.updateDisplayName(nameController.text.trim());
+      final user = userCredential.user;
+      if (user == null) {
+        throw Exception('Kullanıcı oluşturuldu ama user null geldi');
+      }
 
-      debugPrint('[Register] Kayıt başarılı: ${userCredential.user?.email}');
+      await user.updateDisplayName(nameController.text.trim());
+
+      // ✅ Email bazlı rol belirleme
+      final email = emailController.text.trim().toLowerCase();
+      String role = 'citizen';
+      List<String> districts = [];
       
-      _isLoading = false;
-      notifyListeners();
+      // Eğer email @belediye.bel.tr ile bitiyorsa belediye yetkilisi
+      if (email.endsWith('@belediye.bel.tr') || email.endsWith('@municipality.gov.tr')) {
+        role = 'municipality';
+        // Seçilen ilçeyi sorumlu ilçeler listesine ekle
+        if (selectedDistrict != null) {
+          districts = [selectedDistrict!];
+        }
+        debugPrint('[Register] Belediye yetkilisi kaydı: $email');
+      }
+
+      // ✅ Firestore'a kullanıcı profilini yaz
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'fullName': nameController.text.trim(),
+        'email': user.email,
+        'city': selectedCity,
+        'role': role,
+        'score': 0,
+        'district': selectedDistrict,
+        'districts': districts, // Belediye için sorumlu ilçeler
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint('[Register] Kayıt başarılı: ${user.email}');
       return true;
     } on FirebaseAuthException catch (e) {
-      _isLoading = false;
-
-      // Firebase hatalarını Türkçe'ye çevir
       switch (e.code) {
         case 'email-already-in-use':
           errorMessage = 'Bu email adresi zaten kullanılıyor';
@@ -102,16 +132,15 @@ class RegisterViewModel extends ChangeNotifier {
         default:
           errorMessage = 'Kayıt sırasında hata oluştu: ${e.message}';
       }
-
       debugPrint('[Register] FirebaseAuthException: ${e.code} - $errorMessage');
-      notifyListeners();
       return false;
     } catch (e) {
-      _isLoading = false;
       errorMessage = 'Beklenmeyen bir hata oluştu: $e';
       debugPrint('[Register] Bilinmeyen hata: $e');
-      notifyListeners();
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
